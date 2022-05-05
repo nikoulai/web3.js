@@ -17,7 +17,7 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 
 import { EventEmitter } from 'events';
 import { ClientRequestArgs } from 'http';
-import { ClientOptions, CloseEvent, MessageEvent, WebSocket } from 'isomorphic-ws';
+import { ClientOptions, CloseEvent, MessageEvent, WebSocket } from 'ws';
 import {
 	ConnectionNotOpenError,
 	EthExecutionAPI,

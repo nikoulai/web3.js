@@ -215,7 +215,7 @@ describe('WebSocketProvider - implemented methods', () => {
 			expect(webSocketProvider.getStatus()).toBe('disconnected');
 		});
 	});
-	describe('send multiple Requests on same connection with valid payload and receive response tests', () => {
+	describe.skip('send multiple Requests on same connection with valid payload and receive response tests', () => {
 		// eslint-disable-next-line jest/expect-expect
 		let jsonRpcPayload2: Web3APIPayload<EthExecutionAPI, 'eth_mining'>;
 		let jsonRpcPayload3: Web3APIPayload<EthExecutionAPI, 'eth_hashrate'>;
@@ -266,6 +266,22 @@ describe('WebSocketProvider - implemented methods', () => {
 				.catch(err => {
 					done.fail(err.message);
 				});
+		});
+	});
+
+	describe('Support of Basic Auth', () => {
+		// eslint-disable-next-line jest/expect-expect
+		it('should connect with basic auth', async () => {
+			// webSocketProvider = new WebSocketProvider('ws://geth:authpass@localhost:80');
+			webSocketProvider = new WebSocketProvider('ws://localhost:8545', {
+				rejectUnauthorized: false,
+				headers: {
+					// authorization: `Basic ${Buffer.from('geth:authpass').toString('base64')}`,
+					authorization: 'Basic Z2V0aDphdXRocGFzcw==',
+				},
+			});
+			// webSocketProvider = new WebSocketProvider('ws://localhost:8545');
+			await waitForOpenConnection(webSocketProvider);
 		});
 	});
 });
