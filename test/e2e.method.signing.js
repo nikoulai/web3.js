@@ -591,7 +591,7 @@ describe('transaction and message signing [ @E2E ]', function() {
             hardfork: 'petersburg',
         };
 
-        const txObject = {
+        const  txObject = {
             nonce:    web3.utils.toHex(txCount),
             to:       destination,
             value:    web3.utils.toHex(web3.utils.toWei('0.1', 'ether')),
@@ -605,6 +605,8 @@ describe('transaction and message signing [ @E2E ]', function() {
         const data = Buffer.from(signed.rawTransaction.slice(2), "hex")
         const tx = TransactionFactory.fromSerializedData(data);
 
+        console.log(signed)
+        console.log(tx)
         assert(signed.v === ('0x' + tx.v.toString('hex')));
         assert(signed.r === ('0x' + tx.r.toString('hex')));
         assert(signed.s === ('0x' + tx.s.toString('hex')));
