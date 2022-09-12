@@ -15,26 +15,28 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 import WebSocketProvider from 'web3-providers-ws';
-import { SupportedProviders } from 'web3-core';
+import { Web3BaseProvider } from 'web3-types';
+/* eslint-disable import/no-named-as-default */
 import Web3Eth from '../../src/index';
 import {
 	NewHeadsSubscription,
 	SyncingSubscription,
 	NewPendingTransactionsSubscription,
 	LogsSubscription,
-} from '../../src/web3_subscriptions';
-import { clientWsUrl, accounts } from '../../../../.github/test.config'; // eslint-disable-line import/no-relative-packages
+} from '../../src';
+import {
+	getSystemTestProvider,
+	describeIf,
+	isWs,
+	createTempAccount,
+} from '../fixtures/system_test_utils';
 
-describe('unsubscribe', () => {
+describeIf(isWs)('subscribe', () => {
 	let web3Eth: Web3Eth;
 	let provider: WebSocketProvider;
 
-	beforeAll(() => {
-		provider = new WebSocketProvider(
-			clientWsUrl,
-			{},
-			{ delay: 1, autoReconnect: false, maxAttempts: 1 },
-		);
+	beforeAll(async () => {
+		provider = new WebSocketProvider(getSystemTestProvider());
 	});
 
 	afterAll(() => {
@@ -47,30 +49,31 @@ describe('unsubscribe', () => {
 
 	describe('subscribe to', () => {
 		it('newHeads', async () => {
-			web3Eth = new Web3Eth(provider as SupportedProviders<any>);
+			web3Eth = new Web3Eth(provider as Web3BaseProvider);
 			await web3Eth.subscribe('newHeads');
 			const subs = web3Eth?.subscriptionManager?.subscriptions;
 			const inst = subs?.get(Array.from(subs.keys())[0]);
 			expect(inst).toBeInstanceOf(NewHeadsSubscription);
 		});
 		it('syncing', async () => {
-			web3Eth = new Web3Eth(provider as SupportedProviders<any>);
+			web3Eth = new Web3Eth(provider as Web3BaseProvider);
 			await web3Eth.subscribe('syncing');
 			const subs = web3Eth?.subscriptionManager?.subscriptions;
 			const inst = subs?.get(Array.from(subs.keys())[0]);
 			expect(inst).toBeInstanceOf(SyncingSubscription);
 		});
 		it('newPendingTransactions', async () => {
-			web3Eth = new Web3Eth(provider as SupportedProviders<any>);
+			web3Eth = new Web3Eth(provider as Web3BaseProvider);
 			await web3Eth.subscribe('newPendingTransactions');
 			const subs = web3Eth?.subscriptionManager?.subscriptions;
 			const inst = subs?.get(Array.from(subs.keys())[0]);
 			expect(inst).toBeInstanceOf(NewPendingTransactionsSubscription);
 		});
 		it('logs', async () => {
-			web3Eth = new Web3Eth(provider as SupportedProviders<any>);
+			const tempAcc = await createTempAccount();
+			web3Eth = new Web3Eth(provider as Web3BaseProvider);
 			await web3Eth.subscribe('logs', {
-				address: accounts[0].address,
+				address: tempAcc.address,
 			});
 			const subs = web3Eth?.subscriptionManager?.subscriptions;
 			const inst = subs?.get(Array.from(subs.keys())[0]);

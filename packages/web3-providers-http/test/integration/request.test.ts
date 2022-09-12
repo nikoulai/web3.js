@@ -15,33 +15,33 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import {
-	EthExecutionAPI,
-	Web3APIPayload,
-	JsonRpcResponse,
-	JsonRpcResponseWithResult,
-} from 'web3-common';
+import { EthExecutionAPI, Web3APIPayload, JsonRpcResponseWithResult } from 'web3-types';
 import HttpProvider from '../../src/index';
-// eslint-disable-next-line
-import { accounts, clientUrl } from '../../../../.github/test.config';
+import {
+	getSystemTestProvider,
+	describeIf,
+	createTempAccount,
+	isHttp,
+} from '../fixtures/system_test_utils';
 
-describe('HttpProvider - implemented methods', () => {
+describeIf(isHttp)('HttpProvider - implemented methods', () => {
 	let httpProvider: HttpProvider;
 	let jsonRpcPayload: Web3APIPayload<EthExecutionAPI, 'eth_getBalance'>;
 
 	beforeAll(async () => {
-		httpProvider = new HttpProvider(clientUrl);
+		httpProvider = new HttpProvider(getSystemTestProvider());
+		const tempAcc = await createTempAccount();
 		jsonRpcPayload = {
 			jsonrpc: '2.0',
 			id: 42,
 			method: 'eth_getBalance',
-			params: [accounts[0].address, 'latest'],
+			params: [tempAcc.address, 'latest'],
 		} as Web3APIPayload<EthExecutionAPI, 'eth_getBalance'>;
 	});
 
 	describe('httpProvider.request', () => {
 		it('should return expected response', async () => {
-			const response: JsonRpcResponse = await httpProvider.request(jsonRpcPayload);
+			const response = await httpProvider.request(jsonRpcPayload);
 			expect(Number((response as JsonRpcResponseWithResult).id)).toBeGreaterThan(0);
 		});
 	});

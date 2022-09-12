@@ -15,13 +15,15 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Web3APISpec, Web3BaseProvider } from 'web3-common';
 import {
+	EIP1193Provider,
 	LegacyRequestProvider,
 	LegacySendAsyncProvider,
 	LegacySendProvider,
 	SupportedProviders,
-} from './types';
+	Web3APISpec,
+	Web3BaseProvider,
+} from 'web3-types';
 
 export const isWeb3Provider = <API extends Web3APISpec>(
 	provider: SupportedProviders<API>,
@@ -29,7 +31,18 @@ export const isWeb3Provider = <API extends Web3APISpec>(
 
 export const isLegacyRequestProvider = <API extends Web3APISpec>(
 	provider: SupportedProviders<API>,
-): provider is LegacyRequestProvider => typeof provider !== 'string' && 'request' in provider;
+): provider is LegacyRequestProvider =>
+	typeof provider !== 'string' &&
+	'request' in provider &&
+	provider.request.constructor.name === 'Function';
+
+export const isEIP1193Provider = <API extends Web3APISpec>(
+	provider: SupportedProviders<API>,
+): provider is EIP1193Provider<API> =>
+	typeof provider !== 'string' &&
+	'request' in provider &&
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+	(provider.request as any)[Symbol.toStringTag] === 'AsyncFunction';
 
 export const isLegacySendProvider = <API extends Web3APISpec>(
 	provider: SupportedProviders<API>,
@@ -41,7 +54,7 @@ export const isLegacySendAsyncProvider = <API extends Web3APISpec>(
 
 export const isSupportedProvider = <API extends Web3APISpec>(
 	provider: SupportedProviders<API>,
-): boolean =>
+): provider is SupportedProviders<API> =>
 	Web3BaseProvider.isWeb3Provider(provider) ||
 	isLegacyRequestProvider(provider) ||
 	isLegacySendAsyncProvider(provider) ||

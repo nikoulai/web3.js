@@ -18,16 +18,16 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 import {
 	AccessList,
 	AccessListEntry,
-	BaseTransaction,
-	FMT_BYTES,
-	FMT_NUMBER,
-	Transaction1559Unsigned,
-	Transaction2930Unsigned,
+	BaseTransactionAPI,
+	Transaction1559UnsignedAPI,
+	Transaction2930UnsignedAPI,
 	TransactionCall,
-	TransactionLegacyUnsigned,
-	TransactionWithSender,
-} from 'web3-common';
-import { isAddress, isHexStrict, isHexString32Bytes, isUInt } from 'web3-validator';
+	TransactionLegacyUnsignedAPI,
+	Transaction,
+	TransactionWithSenderAPI,
+} from 'web3-types';
+import { ETH_DATA_FORMAT } from 'web3-utils';
+import { isAddress, isHexStrict, isHexString32Bytes, isNullish, isUInt } from 'web3-validator';
 import {
 	ChainIdMismatchError,
 	CommonOrChainAndHardforkError,
@@ -46,12 +46,11 @@ import {
 	UnsupportedFeeMarketError,
 } from './errors';
 import { formatTransaction } from './utils/format_transaction';
-import { InternalTransaction, Transaction } from './types';
+import { InternalTransaction } from './types';
 
-export function isBaseTransaction(value: BaseTransaction): boolean {
-	if (value.to !== undefined && value?.to !== null && !isAddress(value.to)) return false;
-	if (!isHexStrict(value.type) && value.type !== undefined && value.type.length !== 2)
-		return false;
+export function isBaseTransaction(value: BaseTransactionAPI): boolean {
+	if (!isNullish(value.to) && !isAddress(value.to)) return false;
+	if (!isHexStrict(value.type) && !isNullish(value.type) && value.type.length !== 2) return false;
 	if (!isHexStrict(value.nonce)) return false;
 	if (!isHexStrict(value.gas)) return false;
 	if (!isHexStrict(value.value)) return false;
@@ -62,9 +61,9 @@ export function isBaseTransaction(value: BaseTransaction): boolean {
 }
 
 export function isAccessListEntry(value: AccessListEntry): boolean {
-	if (value.address !== undefined && !isAddress(value.address)) return false;
+	if (!isNullish(value.address) && !isAddress(value.address)) return false;
 	if (
-		value.storageKeys !== undefined &&
+		!isNullish(value.storageKeys) &&
 		!value.storageKeys.every(storageKey => isHexString32Bytes(storageKey))
 	)
 		return false;
@@ -82,7 +81,7 @@ export function isAccessList(value: AccessList): boolean {
 	return true;
 }
 
-export function isTransaction1559Unsigned(value: Transaction1559Unsigned): boolean {
+export function isTransaction1559Unsigned(value: Transaction1559UnsignedAPI): boolean {
 	if (!isBaseTransaction(value)) return false;
 	if (!isHexStrict(value.maxFeePerGas)) return false;
 	if (!isHexStrict(value.maxPriorityFeePerGas)) return false;
@@ -91,7 +90,7 @@ export function isTransaction1559Unsigned(value: Transaction1559Unsigned): boole
 	return true;
 }
 
-export function isTransaction2930Unsigned(value: Transaction2930Unsigned): boolean {
+export function isTransaction2930Unsigned(value: Transaction2930UnsignedAPI): boolean {
 	if (!isBaseTransaction(value)) return false;
 	if (!isHexStrict(value.gasPrice)) return false;
 	if (!isAccessList(value.accessList)) return false;
@@ -99,40 +98,40 @@ export function isTransaction2930Unsigned(value: Transaction2930Unsigned): boole
 	return true;
 }
 
-export function isTransactionLegacyUnsigned(value: TransactionLegacyUnsigned): boolean {
+export function isTransactionLegacyUnsigned(value: TransactionLegacyUnsignedAPI): boolean {
 	if (!isBaseTransaction(value)) return false;
 	if (!isHexStrict(value.gasPrice)) return false;
 
 	return true;
 }
 
-export function isTransactionWithSender(value: TransactionWithSender): boolean {
+export function isTransactionWithSender(value: TransactionWithSenderAPI): boolean {
 	if (!isAddress(value.from)) return false;
 	if (!isBaseTransaction(value)) return false;
 	if (
-		!isTransaction1559Unsigned(value as Transaction1559Unsigned) &&
-		!isTransaction2930Unsigned(value as Transaction2930Unsigned) &&
-		!isTransactionLegacyUnsigned(value as TransactionLegacyUnsigned)
+		!isTransaction1559Unsigned(value as Transaction1559UnsignedAPI) &&
+		!isTransaction2930Unsigned(value as Transaction2930UnsignedAPI) &&
+		!isTransactionLegacyUnsigned(value as TransactionLegacyUnsignedAPI)
 	)
 		return false;
 
 	return true;
 }
 
-export function validateTransactionWithSender(value: TransactionWithSender) {
+export function validateTransactionWithSender(value: TransactionWithSenderAPI) {
 	if (!isTransactionWithSender(value)) throw new InvalidTransactionWithSender(value);
 }
 
 export function isTransactionCall(value: TransactionCall): boolean {
-	if (value.from !== undefined && !isAddress(value.from)) return false;
+	if (!isNullish(value.from) && !isAddress(value.from)) return false;
 	if (!isAddress(value.to)) return false;
-	if (value.gas !== undefined && !isHexStrict(value.gas)) return false;
-	if (value.gasPrice !== undefined && !isHexStrict(value.gasPrice)) return false;
-	if (value.value !== undefined && !isHexStrict(value.value)) return false;
-	if (value.data !== undefined && !isHexStrict(value.data)) return false;
-	if (value.type !== undefined) return false;
-	if (isTransaction1559Unsigned(value as Transaction1559Unsigned)) return false;
-	if (isTransaction2930Unsigned(value as Transaction2930Unsigned)) return false;
+	if (!isNullish(value.gas) && !isHexStrict(value.gas)) return false;
+	if (!isNullish(value.gasPrice) && !isHexStrict(value.gasPrice)) return false;
+	if (!isNullish(value.value) && !isHexStrict(value.value)) return false;
+	if (!isNullish(value.data) && !isHexStrict(value.data)) return false;
+	if (!isNullish(value.type)) return false;
+	if (isTransaction1559Unsigned(value as Transaction1559UnsignedAPI)) return false;
+	if (isTransaction2930Unsigned(value as Transaction2930UnsignedAPI)) return false;
 
 	return true;
 }
@@ -142,12 +141,12 @@ export function validateTransactionCall(value: TransactionCall) {
 }
 
 export const validateCustomChainInfo = (transaction: InternalTransaction) => {
-	if (transaction.common !== undefined) {
-		if (transaction.common.customChain === undefined) throw new MissingCustomChainError();
-		if (transaction.common.customChain.chainId === undefined)
+	if (!isNullish(transaction.common)) {
+		if (isNullish(transaction.common.customChain)) throw new MissingCustomChainError();
+		if (isNullish(transaction.common.customChain.chainId))
 			throw new MissingCustomChainIdError();
 		if (
-			transaction.chainId !== undefined &&
+			!isNullish(transaction.chainId) &&
 			transaction.chainId !== transaction.common.customChain.chainId
 		)
 			throw new ChainIdMismatchError({
@@ -159,15 +158,15 @@ export const validateCustomChainInfo = (transaction: InternalTransaction) => {
 
 export const validateChainInfo = (transaction: InternalTransaction) => {
 	if (
-		transaction.common !== undefined &&
-		transaction.chain !== undefined &&
-		transaction.hardfork !== undefined
+		!isNullish(transaction.common) &&
+		!isNullish(transaction.chain) &&
+		!isNullish(transaction.hardfork)
 	) {
 		throw new CommonOrChainAndHardforkError();
 	}
 	if (
-		(transaction.chain !== undefined && transaction.hardfork === undefined) ||
-		(transaction.hardfork !== undefined && transaction.chain === undefined)
+		(!isNullish(transaction.chain) && isNullish(transaction.hardfork)) ||
+		(!isNullish(transaction.hardfork) && isNullish(transaction.chain))
 	)
 		throw new MissingChainOrHardforkError({
 			chain: transaction.chain,
@@ -178,16 +177,16 @@ export const validateChainInfo = (transaction: InternalTransaction) => {
 export const validateLegacyGas = (transaction: InternalTransaction) => {
 	if (
 		// This check is verifying gas and gasPrice aren't less than 0.
-		transaction.gas === undefined ||
+		isNullish(transaction.gas) ||
 		!isUInt(transaction.gas) ||
-		transaction.gasPrice === undefined ||
+		isNullish(transaction.gasPrice) ||
 		!isUInt(transaction.gasPrice)
 	)
 		throw new InvalidGasOrGasPrice({
 			gas: transaction.gas,
 			gasPrice: transaction.gasPrice,
 		});
-	if (transaction.maxFeePerGas !== undefined || transaction.maxPriorityFeePerGas !== undefined)
+	if (!isNullish(transaction.maxFeePerGas) || !isNullish(transaction.maxPriorityFeePerGas))
 		throw new UnsupportedFeeMarketError({
 			maxFeePerGas: transaction.maxFeePerGas,
 			maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
@@ -198,7 +197,7 @@ export const validateFeeMarketGas = (transaction: InternalTransaction) => {
 	// These errors come from 1.x, so they must be checked before
 	// InvalidMaxPriorityFeePerGasOrMaxFeePerGas to throw the same error
 	// for the same code executing in 1.x
-	if (transaction.gasPrice !== undefined && transaction.type === '0x2')
+	if (!isNullish(transaction.gasPrice) && transaction.type === '0x2')
 		throw new Eip1559GasPriceError(transaction.gasPrice);
 	if (transaction.type === '0x0' || transaction.type === '0x1')
 		throw new UnsupportedFeeMarketError({
@@ -207,9 +206,9 @@ export const validateFeeMarketGas = (transaction: InternalTransaction) => {
 		});
 
 	if (
-		transaction.maxFeePerGas === undefined ||
+		isNullish(transaction.maxFeePerGas) ||
 		!isUInt(transaction.maxFeePerGas) ||
-		transaction.maxPriorityFeePerGas === undefined ||
+		isNullish(transaction.maxPriorityFeePerGas) ||
 		!isUInt(transaction.maxPriorityFeePerGas)
 	)
 		throw new InvalidMaxPriorityFeePerGasOrMaxFeePerGas({
@@ -223,12 +222,12 @@ export const validateFeeMarketGas = (transaction: InternalTransaction) => {
  * legacy gas (type 0x0 and 0x1) OR fee market transactions (0x2)
  */
 export const validateGas = (transaction: InternalTransaction) => {
-	const gasPresent = transaction.gas !== undefined || transaction.gasLimit !== undefined;
-	const legacyGasPresent = gasPresent && transaction.gasPrice !== undefined;
+	const gasPresent = !isNullish(transaction.gas) || !isNullish(transaction.gasLimit);
+	const legacyGasPresent = gasPresent && !isNullish(transaction.gasPrice);
 	const feeMarketGasPresent =
 		gasPresent &&
-		transaction.maxPriorityFeePerGas !== undefined &&
-		transaction.maxFeePerGas !== undefined;
+		!isNullish(transaction.maxPriorityFeePerGas) &&
+		!isNullish(transaction.maxFeePerGas);
 
 	if (!legacyGasPresent && !feeMarketGasPresent)
 		throw new MissingGasError({
@@ -249,7 +248,7 @@ export const validateGas = (transaction: InternalTransaction) => {
 		});
 
 	(legacyGasPresent ? validateLegacyGas : validateFeeMarketGas)(transaction);
-	(transaction.type !== undefined && transaction.type > '0x1'
+	(!isNullish(transaction.type) && transaction.type > '0x1'
 		? validateFeeMarketGas
 		: validateLegacyGas)(transaction);
 };
@@ -258,26 +257,23 @@ export const validateTransactionForSigning = (
 	transaction: InternalTransaction,
 	overrideMethod?: (transaction: InternalTransaction) => void,
 ) => {
-	if (overrideMethod !== undefined) {
+	if (!isNullish(overrideMethod)) {
 		overrideMethod(transaction);
 		return;
 	}
 
-	if (typeof transaction !== 'object' || transaction === null)
+	if (typeof transaction !== 'object' || isNullish(transaction))
 		throw new InvalidTransactionObjectError(transaction);
 
 	validateCustomChainInfo(transaction);
 	validateChainInfo(transaction);
 
-	const formattedTransaction = formatTransaction(transaction as Transaction, {
-		number: FMT_NUMBER.HEX,
-		bytes: FMT_BYTES.HEX,
-	});
+	const formattedTransaction = formatTransaction(transaction as Transaction, ETH_DATA_FORMAT);
 	validateGas(formattedTransaction);
 
 	if (
-		formattedTransaction.nonce === undefined ||
-		formattedTransaction.chainId === undefined ||
+		isNullish(formattedTransaction.nonce) ||
+		isNullish(formattedTransaction.chainId) ||
 		formattedTransaction.nonce.startsWith('-') ||
 		formattedTransaction.chainId.startsWith('-')
 	)

@@ -21,6 +21,7 @@ import {
 	ERR_TX_INVALID_CALL,
 	ERR_TX_INVALID_CHAIN_INFO,
 	ERR_TX_INVALID_SENDER,
+	ERR_TX_LOCAL_WALLET_NOT_AVAILABLE,
 	ERR_TX_MISSING_CHAIN_INFO,
 	ERR_TX_MISSING_CUSTOM_CHAIN,
 	ERR_TX_MISSING_CUSTOM_CHAIN_ID,
@@ -35,16 +36,17 @@ import {
 	ERR_TX_INVALID_FEE_MARKET_GAS_PRICE,
 	ERR_TX_INVALID_LEGACY_GAS,
 	ERR_TX_DATA_AND_INPUT,
+	ERR_TX_SEND_TIMEOUT,
 	ERR_TX_POLLING_TIMEOUT,
 	ERR_TX_RECEIPT_MISSING_OR_BLOCKHASH_NULL,
 	ERR_TX_RECEIPT_MISSING_BLOCK_NUMBER,
 	ERR_SIGNATURE_FAILED,
-} from 'web3-common';
-import { Bytes, HexString, Numbers, Web3Error } from 'web3-utils';
+	InvalidValueError,
+	Web3Error,
+} from 'web3-errors';
+import { Bytes, HexString, Numbers, TransactionReceipt } from 'web3-types';
 
-import { ReceiptInfo } from './types';
-
-export class InvalidTransactionWithSender extends Web3Error {
+export class InvalidTransactionWithSender extends InvalidValueError {
 	public code = ERR_TX_INVALID_SENDER;
 
 	public constructor(value: unknown) {
@@ -52,7 +54,7 @@ export class InvalidTransactionWithSender extends Web3Error {
 	}
 }
 
-export class InvalidTransactionCall extends Web3Error {
+export class InvalidTransactionCall extends InvalidValueError {
 	public code = ERR_TX_INVALID_CALL;
 
 	public constructor(value: unknown) {
@@ -60,7 +62,7 @@ export class InvalidTransactionCall extends Web3Error {
 	}
 }
 
-export class MissingCustomChainError extends Web3Error {
+export class MissingCustomChainError extends InvalidValueError {
 	public code = ERR_TX_MISSING_CUSTOM_CHAIN;
 
 	public constructor() {
@@ -71,7 +73,7 @@ export class MissingCustomChainError extends Web3Error {
 	}
 }
 
-export class MissingCustomChainIdError extends Web3Error {
+export class MissingCustomChainIdError extends InvalidValueError {
 	public code = ERR_TX_MISSING_CUSTOM_CHAIN_ID;
 
 	public constructor() {
@@ -82,7 +84,7 @@ export class MissingCustomChainIdError extends Web3Error {
 	}
 }
 
-export class ChainIdMismatchError extends Web3Error {
+export class ChainIdMismatchError extends InvalidValueError {
 	public code = ERR_TX_CHAIN_ID_MISMATCH;
 
 	public constructor(value: { txChainId: unknown; customChainId: unknown }) {
@@ -94,7 +96,7 @@ export class ChainIdMismatchError extends Web3Error {
 	}
 }
 
-export class CommonOrChainAndHardforkError extends Web3Error {
+export class CommonOrChainAndHardforkError extends InvalidValueError {
 	public code = ERR_TX_INVALID_CHAIN_INFO;
 
 	public constructor() {
@@ -105,7 +107,7 @@ export class CommonOrChainAndHardforkError extends Web3Error {
 	}
 }
 
-export class MissingChainOrHardforkError extends Web3Error {
+export class MissingChainOrHardforkError extends InvalidValueError {
 	public code = ERR_TX_MISSING_CHAIN_INFO;
 
 	public constructor(value: { chain: string | undefined; hardfork: string | undefined }) {
@@ -118,7 +120,7 @@ export class MissingChainOrHardforkError extends Web3Error {
 	}
 }
 
-export class MissingGasError extends Web3Error {
+export class MissingGasError extends InvalidValueError {
 	public code = ERR_TX_MISSING_GAS;
 
 	public constructor(value: {
@@ -139,7 +141,7 @@ export class MissingGasError extends Web3Error {
 	}
 }
 
-export class TransactionGasMismatchError extends Web3Error {
+export class TransactionGasMismatchError extends InvalidValueError {
 	public code = ERR_TX_MISSING_GAS;
 
 	public constructor(value: {
@@ -160,7 +162,7 @@ export class TransactionGasMismatchError extends Web3Error {
 	}
 }
 
-export class InvalidGasOrGasPrice extends Web3Error {
+export class InvalidGasOrGasPrice extends InvalidValueError {
 	public code = ERR_TX_INVALID_LEGACY_GAS;
 
 	public constructor(value: { gas: Numbers | undefined; gasPrice: Numbers | undefined }) {
@@ -171,7 +173,7 @@ export class InvalidGasOrGasPrice extends Web3Error {
 	}
 }
 
-export class InvalidMaxPriorityFeePerGasOrMaxFeePerGas extends Web3Error {
+export class InvalidMaxPriorityFeePerGasOrMaxFeePerGas extends InvalidValueError {
 	public code = ERR_TX_INVALID_FEE_MARKET_GAS;
 
 	public constructor(value: {
@@ -187,7 +189,7 @@ export class InvalidMaxPriorityFeePerGasOrMaxFeePerGas extends Web3Error {
 	}
 }
 
-export class Eip1559GasPriceError extends Web3Error {
+export class Eip1559GasPriceError extends InvalidValueError {
 	public code = ERR_TX_INVALID_FEE_MARKET_GAS_PRICE;
 
 	public constructor(value: unknown) {
@@ -195,7 +197,7 @@ export class Eip1559GasPriceError extends Web3Error {
 	}
 }
 
-export class UnsupportedFeeMarketError extends Web3Error {
+export class UnsupportedFeeMarketError extends InvalidValueError {
 	public code = ERR_TX_INVALID_LEGACY_FEE_MARKET;
 
 	public constructor(value: {
@@ -211,7 +213,7 @@ export class UnsupportedFeeMarketError extends Web3Error {
 	}
 }
 
-export class InvalidTransactionObjectError extends Web3Error {
+export class InvalidTransactionObjectError extends InvalidValueError {
 	public code = ERR_TX_INVALID_OBJECT;
 
 	public constructor(value: unknown) {
@@ -219,7 +221,7 @@ export class InvalidTransactionObjectError extends Web3Error {
 	}
 }
 
-export class InvalidNonceOrChainIdError extends Web3Error {
+export class InvalidNonceOrChainIdError extends InvalidValueError {
 	public code = ERR_TX_INVALID_NONCE_OR_CHAIN_ID;
 
 	public constructor(value: { nonce: Numbers | undefined; chainId: Numbers | undefined }) {
@@ -230,7 +232,7 @@ export class InvalidNonceOrChainIdError extends Web3Error {
 	}
 }
 
-export class UnableToPopulateNonceError extends Web3Error {
+export class UnableToPopulateNonceError extends InvalidValueError {
 	public code = ERR_TX_UNABLE_TO_POPULATE_NONCE;
 
 	public constructor() {
@@ -238,7 +240,7 @@ export class UnableToPopulateNonceError extends Web3Error {
 	}
 }
 
-export class Eip1559NotSupportedError extends Web3Error {
+export class Eip1559NotSupportedError extends InvalidValueError {
 	public code = ERR_TX_UNSUPPORTED_EIP_1559;
 
 	public constructor() {
@@ -246,7 +248,7 @@ export class Eip1559NotSupportedError extends Web3Error {
 	}
 }
 
-export class UnsupportedTransactionTypeError extends Web3Error {
+export class UnsupportedTransactionTypeError extends InvalidValueError {
 	public code = ERR_TX_UNSUPPORTED_TYPE;
 
 	public constructor(value: unknown) {
@@ -254,7 +256,7 @@ export class UnsupportedTransactionTypeError extends Web3Error {
 	}
 }
 
-export class TransactionDataAndInputError extends Web3Error {
+export class TransactionDataAndInputError extends InvalidValueError {
 	public code = ERR_TX_DATA_AND_INPUT;
 
 	public constructor(value: { data: HexString | undefined; input: HexString | undefined }) {
@@ -265,21 +267,40 @@ export class TransactionDataAndInputError extends Web3Error {
 	}
 }
 
+export class TransactionSendTimeoutError extends Web3Error {
+	public code = ERR_TX_SEND_TIMEOUT;
+
+	public constructor(value: { numberOfSeconds: number; transactionHash?: Bytes }) {
+		super(
+			`The connected Ethereum Node did not respond within ${
+				value.numberOfSeconds
+			} seconds, please make sure your transaction was properly sent and you are connected to a healthy Node. Be aware that transaction might still be pending or mined!\n\tTransaction Hash: ${
+				value.transactionHash ? value.transactionHash.toString() : 'not available'
+			}`,
+		);
+	}
+}
+
 export class TransactionPollingTimeoutError extends Web3Error {
 	public code = ERR_TX_POLLING_TIMEOUT;
 
 	public constructor(value: { numberOfSeconds: number; transactionHash: Bytes }) {
 		super(
-			`transactionHash: ${value.transactionHash.toString()}`,
-			`Transaction was not mined within ${value.numberOfSeconds} seconds, please make sure your transaction was properly sent. Be aware that it might still be mined!`,
+			`Transaction was not mined within ${
+				value.numberOfSeconds
+			} seconds, please make sure your transaction was properly sent. Be aware that it might still be pending or mined!\n\tTransaction Hash: ${value.transactionHash.toString()}`,
 		);
 	}
 }
 
-export class TransactionMissingReceiptOrBlockHashError extends Web3Error {
+export class TransactionMissingReceiptOrBlockHashError extends InvalidValueError {
 	public code = ERR_TX_RECEIPT_MISSING_OR_BLOCKHASH_NULL;
 
-	public constructor(value: { receipt: ReceiptInfo; blockHash: Bytes; transactionHash: Bytes }) {
+	public constructor(value: {
+		receipt: TransactionReceipt;
+		blockHash: Bytes;
+		transactionHash: Bytes;
+	}) {
 		super(
 			`receipt: ${JSON.stringify(
 				value.receipt,
@@ -289,14 +310,25 @@ export class TransactionMissingReceiptOrBlockHashError extends Web3Error {
 	}
 }
 
-export class TransactionReceiptMissingBlockNumberError extends Web3Error {
+export class TransactionReceiptMissingBlockNumberError extends InvalidValueError {
 	public code = ERR_TX_RECEIPT_MISSING_BLOCK_NUMBER;
 
-	public constructor(value: { receipt: ReceiptInfo }) {
+	public constructor(value: { receipt: TransactionReceipt }) {
 		super(`receipt: ${JSON.stringify(value.receipt)}`, `Receipt missing block number`);
 	}
 }
 
-export class SignatureError extends Web3Error {
+export class SignatureError extends InvalidValueError {
 	public code = ERR_SIGNATURE_FAILED;
+}
+
+export class LocalWalletNotAvailableError extends InvalidValueError {
+	public code = ERR_TX_LOCAL_WALLET_NOT_AVAILABLE;
+
+	public constructor() {
+		super(
+			'LocalWalletNotAvailableError',
+			`Attempted to index account in local wallet, but no wallet is available`,
+		);
+	}
 }

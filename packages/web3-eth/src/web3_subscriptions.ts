@@ -14,11 +14,20 @@ GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
+/* eslint-disable-next-line max-classes-per-file */
+import { format } from 'web3-utils';
 
-// eslint-disable-next-line max-classes-per-file
-import { BlockOutput, SyncOutput } from 'web3-common';
-import { HexString } from 'web3-utils';
+import {
+	SyncOutput,
+	Address,
+	BlockNumberOrTag,
+	HexString,
+	Topic,
+	BlockHeaderOutput,
+	LogsOutput,
+} from 'web3-types';
 import { Web3Subscription } from 'web3-core';
+import { blockHeaderSchema, logSchema, syncSchema } from './schemas';
 
 type CommonSubscriptionEvents = {
 	error: Error;
@@ -27,20 +36,21 @@ type CommonSubscriptionEvents = {
 
 export class LogsSubscription extends Web3Subscription<
 	CommonSubscriptionEvents & {
-		data: any;
+		data: LogsOutput;
 	},
 	{
-		fromBlock?: number;
-		address?: HexString | HexString[];
-		topics?: (HexString | null)[];
+		readonly fromBlock?: BlockNumberOrTag;
+		readonly address?: Address | Address[];
+		readonly topics?: Topic[];
 	}
 > {
 	protected _buildSubscriptionParams() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		return ['logs', this.args] as ['logs', any];
 	}
 
-	public _processSubscriptionResult(data: any) {
-		this.emit('data', data);
+	public _processSubscriptionResult(data: LogsOutput) {
+		this.emit('data', format(logSchema, data, super.returnFormat));
 	}
 
 	public _processSubscriptionError(error: Error) {
@@ -59,7 +69,7 @@ export class NewPendingTransactionsSubscription extends Web3Subscription<
 	}
 
 	protected _processSubscriptionResult(data: string) {
-		this.emit('data', data);
+		this.emit('data', format({ eth: 'string' }, data, super.returnFormat));
 	}
 
 	protected _processSubscriptionError(error: Error) {
@@ -69,7 +79,7 @@ export class NewPendingTransactionsSubscription extends Web3Subscription<
 
 export class NewHeadsSubscription extends Web3Subscription<
 	CommonSubscriptionEvents & {
-		data: BlockOutput;
+		data: BlockHeaderOutput;
 	}
 > {
 	// eslint-disable-next-line
@@ -77,8 +87,8 @@ export class NewHeadsSubscription extends Web3Subscription<
 		return ['newHeads'] as ['newHeads'];
 	}
 
-	protected _processSubscriptionResult(data: BlockOutput) {
-		this.emit('data', data);
+	protected _processSubscriptionResult(data: BlockHeaderOutput) {
+		this.emit('data', format(blockHeaderSchema, data, super.returnFormat));
 	}
 
 	protected _processSubscriptionError(error: Error) {
@@ -97,8 +107,27 @@ export class SyncingSubscription extends Web3Subscription<
 		return ['syncing'] as ['syncing'];
 	}
 
-	protected _processSubscriptionResult(data: SyncOutput) {
-		this.emit('data', data);
+	protected _processSubscriptionResult(
+		data:
+			| {
+					syncing: boolean;
+					status: SyncOutput;
+			  }
+			| boolean,
+	) {
+		if (typeof data === 'boolean') {
+			this.emit('changed', data);
+		} else {
+			const mappedData: SyncOutput = Object.fromEntries(
+				Object.entries(data.status).map(([key, value]) => [
+					key.charAt(0).toLowerCase() + key.substring(1),
+					value,
+				]),
+			) as SyncOutput;
+
+			this.emit('changed', data.syncing);
+			this.emit('data', format(syncSchema, mappedData, super.returnFormat));
+		}
 	}
 
 	protected _processSubscriptionError(error: Error) {

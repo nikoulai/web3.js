@@ -15,12 +15,20 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Address, sha3, isHexStrict } from 'web3-utils';
+import {
+	sha3,
+	isHexStrict,
+	isNullish,
+	format,
+	DEFAULT_RETURN_FORMAT,
+	DataFormat,
+} from 'web3-utils';
 import { Contract, NonPayableCallOptions } from 'web3-eth-contract';
-import { inputAddressFormatter, ResolverMethodMissingError } from 'web3-common';
+import { ResolverMethodMissingError } from 'web3-errors';
+import { Address } from 'web3-types';
 import { interfaceIds, methodsInInterface } from './config';
 import { Registry } from './registry';
-import { RESOLVER } from './abi/resolver';
+import { PublicResolverAbi } from './abi/ens/PublicResolver';
 import { namehash } from './utils';
 
 //  Default public resolver
@@ -41,20 +49,18 @@ export class Resolver {
 	//  https://eips.ethereum.org/EIPS/eip-165
 	// eslint-disable-next-line class-methods-use-this
 	public async checkInterfaceSupport(
-		resolverContract: Contract<typeof RESOLVER>,
+		resolverContract: Contract<typeof PublicResolverAbi>,
 		methodName: string,
 	) {
-		if (interfaceIds[methodName] === undefined)
+		if (isNullish(interfaceIds[methodName]))
 			throw new ResolverMethodMissingError(
 				resolverContract.options.address ?? '',
 				methodName,
 			);
 
-		let supported = false;
-
-		supported = (await resolverContract.methods
+		const supported = await resolverContract.methods
 			.supportsInterface(interfaceIds[methodName])
-			.call()) as Awaited<Promise<boolean>>;
+			.call();
 
 		if (!supported)
 			throw new ResolverMethodMissingError(
@@ -63,12 +69,17 @@ export class Resolver {
 			);
 	}
 
-	public async setAddress(ENSName: string, address: Address, txConfig: NonPayableCallOptions) {
+	public async setAddress(
+		ENSName: string,
+		address: Address,
+		txConfig: NonPayableCallOptions,
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	) {
 		const resolverContract = await this.getResolverContractAdapter(ENSName);
 		await this.checkInterfaceSupport(resolverContract, methodsInInterface.setAddr);
 
 		return resolverContract.methods
-			.setAddr(namehash(ENSName), inputAddressFormatter(address))
+			.setAddr(namehash(ENSName), format({ eth: 'address' }, address, returnFormat))
 			.send(txConfig);
 	}
 

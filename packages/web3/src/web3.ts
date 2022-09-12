@@ -14,118 +14,97 @@ GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
-import { EthExecutionAPI } from 'web3-common';
-import { SupportedProviders, Web3Context } from 'web3-core';
-import Eth from 'web3-eth';
-import { Iban } from 'web3-eth-iban';
-import { ENS, registryAddresses } from 'web3-eth-ens';
-import {
-	ContractAbi,
-	encodeFunctionCall,
-	encodeParameter,
-	encodeParameters,
-	decodeParameter,
-	decodeParameters,
-	encodeFunctionSignature,
-	encodeEventSignature,
-	decodeLog,
-} from 'web3-eth-abi';
+// eslint-disable-next-line max-classes-per-file
+import { Web3Context } from 'web3-core';
+import Web3Eth from 'web3-eth';
+import { ContractAbi } from 'web3-eth-abi';
 import Contract, { ContractInitOptions } from 'web3-eth-contract';
-import {
-	create,
-	privateKeyToAccount,
-	signTransaction,
-	recoverTransaction,
-	hashMessage,
-	sign,
-	recover,
-	encrypt,
-	decrypt,
-	Wallet,
-} from 'web3-eth-accounts';
-import { Address } from 'web3-utils';
-import { ContractError } from './errors';
+import { ENS, registryAddresses } from 'web3-eth-ens';
+import Iban from 'web3-eth-iban';
+import Personal from 'web3-eth-personal';
+import Net from 'web3-net';
+import * as utils from 'web3-utils';
+import { isNullish } from 'web3-utils';
+import { EthExecutionAPI, Address, SupportedProviders } from 'web3-types';
+import abi from './abi';
+import { initAccountsForContext } from './accounts';
+import { Web3EthInterface } from './types';
+import { Web3PkgInfo } from './version';
 
-export class Web3 extends Web3Context<EthExecutionAPI> {
-	public eth: Eth & {
-		Iban: typeof Iban;
-		ens: ENS;
-		Contract: new <Abi extends ContractAbi>(
-			jsonInterface: Abi,
-			address?: Address,
-			options?: ContractInitOptions,
-		) => Contract<Abi>;
-		abi: {
-			encodeEventSignature: typeof encodeFunctionSignature;
-			encodeFunctionCall: typeof encodeFunctionCall;
-			encodeFunctionSignature: typeof encodeFunctionSignature;
-			encodeParameter: typeof encodeParameter;
-			encodeParameters: typeof encodeParameters;
-			decodeParameter: typeof decodeParameter;
-			decodeParameters: typeof decodeParameters;
-			decodeLog: typeof decodeLog;
-		};
-		accounts: {
-			create: typeof create;
-			privateKeyToAccount: typeof privateKeyToAccount;
-			signTransaction: typeof signTransaction;
-			recoverTransaction: typeof recoverTransaction;
-			hashMessage: typeof hashMessage;
-			sign: typeof sign;
-			recover: typeof recover;
-			encrypt: typeof encrypt;
-			decrypt: typeof decrypt;
-		};
+export default class Web3 extends Web3Context<EthExecutionAPI> {
+	public static version = Web3PkgInfo.version;
+	public static utils = utils;
+	public static modules = {
+		Web3Eth,
+		Iban,
+		Net,
+		ENS,
+		Personal,
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	protected readonly _contracts: Contract<any>[];
+	public utils: typeof utils;
 
-	public constructor(provider: SupportedProviders<EthExecutionAPI>) {
-		const accountProvider = {
-			create,
-			privateKeyToAccount,
-			decrypt: async (
-				keystore: string,
-				password: string,
-				options?: Record<string, unknown>,
-			) => decrypt(keystore, password, (options?.nonStrict as boolean) ?? true),
-		};
+	public eth: Web3EthInterface;
 
-		const wallet = new Wallet(accountProvider);
+	public constructor(provider?: SupportedProviders<EthExecutionAPI> | string) {
+		super({ provider });
 
-		super({ provider, wallet, accountProvider });
+		if (isNullish(provider) || (typeof provider === 'string' && provider.trim() === '')) {
+			console.warn(
+				'NOTE: web3.js is running without provider. You need to pass a provider in order to interact with the network!',
+			);
+		}
 
-		this._contracts = [];
+		const accounts = initAccountsForContext(this);
+
+		// Init protected properties
+		this._wallet = accounts.wallet;
+		this._accountProvider = accounts;
+
+		this.utils = utils;
 
 		// Have to use local alias to initiate contract context
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;
 
-		const eth = self.use(Eth);
+		class ContractBuilder<Abi extends ContractAbi> extends Contract<Abi> {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			private static readonly _contracts: Contract<any>[] = [];
 
-		function ContractBuilder<Abi extends ContractAbi>(
-			this: typeof ContractBuilder,
-			jsonInterface: Abi,
-			address?: Address,
-			options?: ContractInitOptions,
-		) {
-			if (!(this instanceof ContractBuilder)) {
-				throw new ContractError('Please use the "new" keyword to instantiate a contract.');
+			public constructor(jsonInterface: Abi);
+			public constructor(jsonInterface: Abi, address: Address);
+			public constructor(jsonInterface: Abi, options: ContractInitOptions);
+			public constructor(jsonInterface: Abi, address: Address, options: ContractInitOptions);
+			public constructor(
+				jsonInterface: Abi,
+				addressOrOptions?: Address | ContractInitOptions,
+				options?: ContractInitOptions,
+			) {
+				if (typeof addressOrOptions === 'string') {
+					super(jsonInterface, addressOrOptions, self.getContextObject());
+				} else if (typeof addressOrOptions === 'object') {
+					super(jsonInterface, addressOrOptions, self.getContextObject());
+				} else if (!isNullish(addressOrOptions) && isNullish(options)) {
+					super(jsonInterface, addressOrOptions ?? {}, self.getContextObject());
+				} else if (isNullish(addressOrOptions) && !isNullish(options)) {
+					super(jsonInterface, options ?? {}, self.getContextObject());
+				} else {
+					super(jsonInterface, self.getContextObject());
+				}
+
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				ContractBuilder._contracts.push(this as Contract<any>);
 			}
 
-			const contract = self.use(Contract, jsonInterface, address, options);
-
-			self._contracts.push(contract);
-
-			return contract;
+			public static setProvider(_provider: SupportedProviders<EthExecutionAPI>): boolean {
+				for (const contract of ContractBuilder._contracts) {
+					contract.provider = _provider;
+				}
+				return true;
+			}
 		}
 
-		ContractBuilder.setProvider = (_provider: SupportedProviders<EthExecutionAPI>) => {
-			for (const contract of self._contracts) {
-				contract.provider = _provider;
-			}
-		};
+		const eth = self.use(Web3Eth);
 
 		// Eth Module
 		this.eth = Object.assign(eth, {
@@ -135,40 +114,17 @@ export class Web3 extends Web3Context<EthExecutionAPI> {
 			// Iban helpers
 			Iban,
 
+			net: self.use(Net),
+			personal: self.use(Personal),
+
 			// Contract helper and module
-			Contract: ContractBuilder as unknown as new <Abi extends ContractAbi>(
-				jsonInterface: Abi,
-				address?: Address,
-				options?: ContractInitOptions,
-			) => Contract<Abi>,
+			Contract: ContractBuilder,
 
 			// ABI Helpers
-			abi: {
-				encodeEventSignature,
-				encodeFunctionCall,
-				encodeFunctionSignature,
-				encodeParameter,
-				encodeParameters,
-				decodeParameter,
-				decodeParameters,
-				decodeLog,
-			},
+			abi,
 
 			// Accounts helper
-			accounts: {
-				create,
-				privateKeyToAccount,
-				signTransaction,
-				recoverTransaction,
-				hashMessage,
-				sign,
-				recover,
-				encrypt,
-				decrypt,
-				wallet,
-			},
+			accounts,
 		});
 	}
 }
-
-export default Web3;

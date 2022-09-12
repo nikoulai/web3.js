@@ -22,20 +22,21 @@ class MyConfigObject extends Web3Config {}
 
 const defaultConfig = {
 	blockHeaderTimeout: 10,
-	defaultAccount: null,
+	defaultAccount: undefined,
 	defaultBlock: 'latest',
 	defaultChain: 'mainnet',
-	defaultNetworkId: null,
-	defaultCommon: null,
+	defaultNetworkId: undefined,
+	defaultCommon: undefined,
 	defaultHardfork: 'london',
 	handleRevert: false,
 	maxListenersWarningThreshold: 100,
 	transactionBlockTimeout: 50,
 	transactionConfirmationBlocks: 24,
 	transactionPollingInterval: 1000,
-	transactionPollingTimeout: 750,
-	transactionReceiptPollingInterval: null,
-	transactionConfirmationPollingInterval: null,
+	transactionPollingTimeout: 750 * 1000,
+	transactionReceiptPollingInterval: undefined,
+	transactionSendTimeout: 750 * 1000,
+	transactionConfirmationPollingInterval: undefined,
 	defaultTransactionType: '0x0',
 	defaultMaxPriorityFeePerGas: toHex(2500000000),
 };
@@ -49,7 +50,7 @@ describe('Web3Config', () => {
 
 	it.each(Object.keys(defaultConfig))('should expose a public getter for "%s"', key => {
 		const obj = new MyConfigObject();
-		const getterSpy = jest.spyOn(obj, key as never, 'get');
+		const getterSpy = jest.spyOn(obj, key as keyof MyConfigObject, 'get');
 
 		const result = obj[key as never];
 
@@ -59,9 +60,9 @@ describe('Web3Config', () => {
 
 	it.each(Object.keys(defaultConfig))('should expose a public setter for "%s"', key => {
 		const obj = new MyConfigObject();
-		const setterSpy = jest.spyOn(obj, key as never, 'set');
+		const setterSpy = jest.spyOn(obj, key as keyof MyConfigObject, 'set');
 
-		obj[key as never] = null as never;
+		obj[key as never] = undefined as never;
 		expect(setterSpy).toHaveBeenCalledTimes(1);
 	});
 

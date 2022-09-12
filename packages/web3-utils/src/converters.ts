@@ -15,17 +15,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { validator, isAddress, isHexStrict, utils as validatorUtils } from 'web3-validator';
-import { keccak256 } from 'ethereum-cryptography/keccak';
-
-import {
-	HexProcessingError,
-	InvalidAddressError,
-	InvalidBytesError,
-	InvalidUnitError,
-	InvalidTypeAbiInputError,
-	InvalidNumberError,
-} from './errors';
 import {
 	Address,
 	Bytes,
@@ -35,7 +24,24 @@ import {
 	JsonFunctionInterface,
 	JsonEventInterface,
 	Components,
-} from './types';
+} from 'web3-types';
+import {
+	validator,
+	isAddress,
+	isHexStrict,
+	utils as validatorUtils,
+	isNullish,
+} from 'web3-validator';
+import { keccak256 } from 'ethereum-cryptography/keccak';
+
+import {
+	HexProcessingError,
+	InvalidAddressError,
+	InvalidBytesError,
+	InvalidUnitError,
+	InvalidTypeAbiInputError,
+	InvalidNumberError,
+} from 'web3-errors';
 
 const base = BigInt(10);
 const expo10 = (expo: number) => base ** BigInt(expo);
@@ -86,7 +92,10 @@ export const bytesToBuffer = (data: Bytes): Buffer | never => {
 	}
 
 	if (typeof data === 'string' && isHexStrict(data)) {
-		return Buffer.from(data.slice(2), 'hex');
+		const dataWithoutPrefix = data.toLowerCase().replace('0x', '');
+		const dataLength = dataWithoutPrefix.length + (dataWithoutPrefix.length % 2);
+		const finalData = dataWithoutPrefix.padStart(dataLength, '0');
+		return Buffer.from(finalData, 'hex');
 	}
 
 	if (typeof data === 'string' && !isHexStrict(data)) {
@@ -96,7 +105,9 @@ export const bytesToBuffer = (data: Bytes): Buffer | never => {
 	throw new InvalidBytesError(data);
 };
 
-/** @internal */
+/**
+ * @internal
+ */
 const bufferToHexString = (data: Buffer) => `0x${data.toString('hex')}`;
 
 /**
@@ -161,12 +172,12 @@ export const utf8ToHex = (str: string): HexString => {
 };
 
 /**
- * @alias `utf8ToHex`
+ * @alias utf8ToHex
  */
 
 export const fromUtf8 = utf8ToHex;
 /**
- * @alias `utf8ToHex`
+ * @alias utf8ToHex
  */
 export const stringToHex = utf8ToHex;
 
@@ -176,12 +187,12 @@ export const stringToHex = utf8ToHex;
 export const hexToUtf8 = (str: HexString): string => bytesToBuffer(str).toString('utf8');
 
 /**
- * @alias `hexToUtf8`
+ * @alias hexToUtf8
  */
 export const toUtf8 = hexToUtf8;
 
 /**
- * @alias `hexToUtf8`
+ * @alias hexToUtf8
  */
 export const hexToString = hexToUtf8;
 
@@ -195,7 +206,7 @@ export const asciiToHex = (str: string): HexString => {
 };
 
 /**
- * @alias `asciiToHex`
+ * @alias asciiToHex
  */
 export const fromAscii = asciiToHex;
 
@@ -205,7 +216,7 @@ export const fromAscii = asciiToHex;
 export const hexToAscii = (str: HexString): string => bytesToBuffer(str).toString('ascii');
 
 /**
- * @alias `hexToAscii`
+ * @alias hexToAscii
  */
 export const toAscii = hexToAscii;
 
@@ -392,7 +403,7 @@ export const toChecksumAddress = (address: Address): string => {
 	const hash = bytesToHex(keccak256(Buffer.from(lowerCaseAddress)));
 
 	if (
-		hash === null ||
+		isNullish(hash) ||
 		hash === 'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470'
 	)
 		return ''; // // EIP-1052 if hash is equal to c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470, keccak was given empty data

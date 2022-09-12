@@ -15,11 +15,41 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Web3Net } from './web3_net';
+/**
+ * The web3-net package allows you to interact with an Ethereum node’s network properties.
+ *
+ * ```ts
+ * import Net from 'web3-net';
+ *
+ * const net = new Net(Net.givenProvider || 'ws://some.local-or-remote.node:8546');
+ * // or using the web3 umbrella package
+ * import Web3 from 'web3';
+ * const web3 = new Web3(Web3.givenProvider || 'ws://some.local-or-remote.node:8546');
+ *
+ * // -> web3.eth.net
+ *
+ * // get the ID of the network
+ * await web3.eth.net.getId();
+ * > 5777n
+ *
+ * // get the peer count
+ * await web3.eth.net.getPeerCount();
+ * > 0n
+ *
+ * // Check if the node is listening for peers
+ * await web3.eth.net.isListening();
+ * > true
+ * ```
+ */
 
-export * from './web3_net';
+/**
+ *
+ */
+import { Net } from './net';
+
+export * from './net';
 export * as rpcMethods from './rpc_methods';
 export * from './rpc_method_wrappers';
 export * from './web3_net_api';
 
-export default Web3Net;
+export default Net;

@@ -36,7 +36,7 @@ const license = [
 
 module.exports = {
 	parser: '@typescript-eslint/parser',
-	plugins: ['@typescript-eslint', 'header'],
+	plugins: ['@typescript-eslint', 'header', 'deprecation', 'eslint-plugin-tsdoc', 'no-null'],
 	extends: [
 		'airbnb-base',
 		'eslint:recommended',
@@ -48,6 +48,7 @@ module.exports = {
 		'plugin:import/typescript',
 	],
 	rules: {
+		'deprecation/deprecation': 'error',
 		'header/header': [2, 'block', license, 1],
 		'class-methods-use-this': ['error'],
 		'no-unused-expressions': ['error'],
@@ -84,11 +85,19 @@ module.exports = {
 		'@typescript-eslint/require-array-sort-compare': ['error'],
 		'@typescript-eslint/switch-exhaustiveness-check': ['error'],
 		'@typescript-eslint/type-annotation-spacing': ['error'],
-		'@typescript-eslint/unified-signatures': ['error'],
+		// Multiple constructors are more readable
+		'@typescript-eslint/unified-signatures': 'off',
 		'@typescript-eslint/no-unused-expressions': ['error'],
 		'@typescript-eslint/no-useless-constructor': ['error'],
 		'@typescript-eslint/explicit-module-boundary-types': 'off',
-		'@typescript-eslint/ban-types': 'warn',
+		'@typescript-eslint/ban-types': [
+			'error',
+			{
+				types: {
+					null: "Use 'undefined' instead of 'null'",
+				},
+			},
+		],
 		'@typescript-eslint/no-unused-vars': 'warn',
 		'import/extensions': [
 			'error',
@@ -119,6 +128,8 @@ module.exports = {
 					'`with` is disallowed in strict mode because it makes code impossible to predict and optimize.',
 			},
 		],
+		'no-null/no-null': ['error'],
+		'tsdoc/syntax': 'warn',
 	},
 	globals: {
 		BigInt: true,

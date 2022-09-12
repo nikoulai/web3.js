@@ -19,15 +19,9 @@ import { EventEmitter } from 'events';
 import { existsSync } from 'fs';
 import { Socket } from 'net';
 import {
-	ConnectionNotOpenError,
-	DeferredPromise,
 	EthExecutionAPI,
-	InvalidClientError,
-	InvalidConnectionError,
 	JsonRpcId,
 	JsonRpcNotification,
-	JsonRpcResponse,
-	JsonRpcResponseWithError,
 	JsonRpcResponseWithResult,
 	JsonRpcResult,
 	Web3APIMethod,
@@ -35,20 +29,32 @@ import {
 	Web3APIReturnType,
 	Web3APISpec,
 	Web3BaseProvider,
-	Web3BaseProviderCallback,
-	Web3BaseProviderStatus,
-} from 'web3-common';
+	Web3ProviderEventCallback,
+	Web3ProviderStatus,
+} from 'web3-types';
+import {
+	ConnectionNotOpenError,
+	InvalidClientError,
+	InvalidConnectionError,
+	ResponseError,
+} from 'web3-errors';
+import { isNullish, Web3DeferredPromise, jsonRpc, ChunkResponseParser } from 'web3-utils';
 
+type WaitOptions = {
+	timeOutTime: number;
+	maxNumberOfAttempts: number;
+};
 export default class IpcProvider<
 	API extends Web3APISpec = EthExecutionAPI,
 > extends Web3BaseProvider<API> {
 	private readonly _emitter: EventEmitter = new EventEmitter();
-
 	private readonly _socketPath: string;
 	private readonly _socket: Socket;
-	private _connectionStatus: Web3BaseProviderStatus;
+	private readonly chunkResponseParser: ChunkResponseParser;
+	private waitOptions: WaitOptions;
+	private _connectionStatus: Web3ProviderStatus;
 
-	private readonly _requestQueue: Map<JsonRpcId, DeferredPromise<unknown>>;
+	private readonly _requestQueue: Map<JsonRpcId, Web3DeferredPromise<unknown>>;
 
 	public constructor(socketPath: string) {
 		super();
@@ -57,12 +63,20 @@ export default class IpcProvider<
 		this._socketPath = socketPath;
 		this._socket = new Socket();
 
-		this._requestQueue = new Map<JsonRpcId, DeferredPromise<unknown>>();
+		this._requestQueue = new Map<JsonRpcId, Web3DeferredPromise<unknown>>();
 
 		this.connect();
+		this.waitOptions = {
+			timeOutTime: 5000,
+			maxNumberOfAttempts: 10,
+		};
+		this.chunkResponseParser = new ChunkResponseParser();
+		this.chunkResponseParser.onError(() => {
+			this._clearQueues();
+		});
 	}
 
-	public getStatus(): Web3BaseProviderStatus {
+	public getStatus(): Web3ProviderStatus {
 		return this._connectionStatus;
 	}
 
@@ -73,16 +87,16 @@ export default class IpcProvider<
 
 	public on<T = JsonRpcResult>(
 		type: 'message' | 'connect' | 'disconnect' | string,
-		callback: Web3BaseProviderCallback<T>,
+		callback: Web3ProviderEventCallback<T>,
 	): void {
 		this._emitter.on(type, callback);
 	}
 
-	public once<T = JsonRpcResult>(type: string, callback: Web3BaseProviderCallback<T>): void {
+	public once<T = JsonRpcResult>(type: string, callback: Web3ProviderEventCallback<T>): void {
 		this._emitter.once(type, callback);
 	}
 
-	public removeListener(type: string, callback: Web3BaseProviderCallback): void {
+	public removeListener(type: string, callback: Web3ProviderEventCallback): void {
 		this._emitter.removeListener(type, callback);
 	}
 
@@ -112,27 +126,61 @@ export default class IpcProvider<
 		this._addSocketListeners();
 	}
 
+	public get waitTimeOut(): number {
+		return this.waitOptions.timeOutTime;
+	}
+
+	public set waitTimeOut(timeOut: number) {
+		this.waitOptions.timeOutTime = timeOut;
+	}
+
+	public get waitMaxNumberOfAttempts(): number {
+		return this.waitOptions.maxNumberOfAttempts;
+	}
+
+	public set waitMaxNumberOfAttempts(maxNumberOfAttempts: number) {
+		this.waitOptions.maxNumberOfAttempts = maxNumberOfAttempts;
+	}
+
+	public async waitForConnection(): Promise<void> {
+		return new Promise<void>((resolve, reject) => {
+			let currentAttempt = 0;
+			const interval = setInterval(() => {
+				if (currentAttempt > this.waitMaxNumberOfAttempts - 1) {
+					clearInterval(interval);
+					reject(new ConnectionNotOpenError());
+				} else if (this.getStatus() === 'connected') {
+					clearInterval(interval);
+					resolve();
+				}
+				currentAttempt += 1;
+			}, this.waitTimeOut / this.waitMaxNumberOfAttempts);
+		});
+	}
+
 	// eslint-disable-next-line @typescript-eslint/require-await
 	public async request<
 		Method extends Web3APIMethod<API>,
-		ResponseType = Web3APIReturnType<API, Method>,
-	>(request: Web3APIPayload<API, Method>): Promise<JsonRpcResponse<ResponseType>> {
-		if (this._socket === undefined) throw new Error('IPC connection is undefined');
+		ResultType = Web3APIReturnType<API, Method>,
+	>(request: Web3APIPayload<API, Method>): Promise<JsonRpcResponseWithResult<ResultType>> {
+		if (isNullish(this._socket)) throw new Error('IPC connection is undefined');
 
-		if (request.id === undefined) throw new Error('Request Id not defined');
+		const requestId = jsonRpc.isBatchRequest(request) ? request[0].id : request.id;
+
+		if (isNullish(requestId)) throw new Error('Request Id not defined');
 
 		if (this.getStatus() !== 'connected') {
-			throw new ConnectionNotOpenError();
+			await this.waitForConnection();
 		}
 
 		try {
-			const defPromise = new DeferredPromise<JsonRpcResponse<ResponseType>>();
-			this._requestQueue.set(request.id, defPromise);
+			const defPromise = new Web3DeferredPromise<JsonRpcResponseWithResult<ResultType>>();
+			this._requestQueue.set(requestId, defPromise);
 			this._socket.write(JSON.stringify(request));
 
 			return defPromise;
 		} catch (error) {
-			this._requestQueue.delete(request.id);
+			this._requestQueue.delete(requestId);
 			throw error;
 		}
 	}
@@ -142,36 +190,43 @@ export default class IpcProvider<
 	}
 
 	private _onMessage(e: Buffer | string): void {
-		const result = typeof e === 'string' ? e : e.toString('utf8');
-
-		const response = JSON.parse(result) as
-			| JsonRpcResponseWithError
-			| JsonRpcResponseWithResult
-			| JsonRpcNotification;
-
-		if ('method' in response && response.method.endsWith('_subscription')) {
-			this._emitter.emit('message', null, response);
+		const responses = this.chunkResponseParser.parseResponse(
+			typeof e === 'string' ? e : e.toString('utf8'),
+		);
+		if (!responses) {
 			return;
 		}
-
-		if (response.id && this._requestQueue.has(response.id)) {
-			const requestItem = this._requestQueue.get(response.id);
-
-			if ('result' in response && response.result !== undefined) {
-				this._emitter.emit('message', null, response);
-				requestItem?.resolve(response);
-			} else if ('error' in response && response.error !== undefined) {
-				this._emitter.emit('message', response, null);
-				requestItem?.reject(response);
+		for (const response of responses) {
+			if (
+				jsonRpc.isResponseWithNotification(response as JsonRpcNotification) &&
+				(response as JsonRpcNotification).method.endsWith('_subscription')
+			) {
+				this._emitter.emit('message', undefined, response);
+				return;
 			}
 
-			this._requestQueue.delete(response.id);
+			const requestId = jsonRpc.isBatchResponse(response) ? response[0].id : response.id;
+			const requestItem = this._requestQueue.get(requestId);
+
+			if (!requestItem) {
+				return;
+			}
+
+			if (jsonRpc.isBatchResponse(response) || jsonRpc.isResponseWithResult(response)) {
+				this._emitter.emit('message', undefined, response);
+				requestItem.resolve(response);
+			} else {
+				this._emitter.emit('message', response, undefined);
+				requestItem?.reject(new ResponseError(response));
+			}
+
+			this._requestQueue.delete(requestId);
 		}
 	}
 
 	private _clearQueues(event?: CloseEvent) {
 		if (this._requestQueue.size > 0) {
-			this._requestQueue.forEach((request: DeferredPromise<unknown>, key: JsonRpcId) => {
+			this._requestQueue.forEach((request: Web3DeferredPromise<unknown>, key: JsonRpcId) => {
 				request.reject(new ConnectionNotOpenError(event));
 				this._requestQueue.delete(key);
 			});

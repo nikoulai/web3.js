@@ -15,7 +15,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { ProviderError, SubscriptionError, Web3APISpec } from 'web3-common';
+import { Web3APISpec } from 'web3-types';
+import { ProviderError, SubscriptionError } from 'web3-errors';
+import { isNullish, DataFormat, DEFAULT_RETURN_FORMAT } from 'web3-utils';
 import { isSupportSubscriptions } from './utils';
 import { Web3RequestManager, Web3RequestManagerEvent } from './web3_request_manager';
 import { Web3SubscriptionConstructor } from './web3_subscriptions';
@@ -52,6 +54,7 @@ export class Web3SubscriptionManager<
 	public async subscribe<T extends keyof RegisteredSubs>(
 		name: T,
 		args?: ConstructorParameters<RegisteredSubs[T]>[0],
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
 	): Promise<InstanceType<RegisteredSubs[T]>> {
 		if (!this.requestManager.provider) {
 			throw new ProviderError('Provider not available');
@@ -62,8 +65,9 @@ export class Web3SubscriptionManager<
 			throw new SubscriptionError('Invalid subscription type');
 		}
 
-		const subscription = new Klass(args ?? null, {
+		const subscription = new Klass(args ?? undefined, {
 			requestManager: this.requestManager,
+			returnFormat,
 		}) as InstanceType<RegisteredSubs[T]>;
 
 		await this.addSubscription(subscription);
@@ -86,7 +90,7 @@ export class Web3SubscriptionManager<
 
 		await sub.subscribe();
 
-		if (sub.id === undefined) {
+		if (isNullish(sub.id)) {
 			throw new SubscriptionError('Subscription is not subscribed yet.');
 		}
 
@@ -94,16 +98,19 @@ export class Web3SubscriptionManager<
 	}
 
 	public async removeSubscription(sub: InstanceType<RegisteredSubs[keyof RegisteredSubs]>) {
-		if (sub.id === undefined) {
+		if (isNullish(sub.id)) {
 			throw new SubscriptionError('Subscription is not subscribed yet.');
 		}
 
 		if (!this._subscriptions.has(sub.id)) {
-			throw new SubscriptionError(`Subscription with id "${sub.id}" does not exists`);
+			throw new SubscriptionError(
+				`Subscription with id "${sub.id.toString()}" does not exists`,
+			);
 		}
 		const { id } = sub;
 		await sub.unsubscribe();
 		this._subscriptions.delete(id);
+		return id;
 	}
 
 	public async unsubscribe(condition?: ShouldUnsubscribeCondition) {
@@ -122,6 +129,8 @@ export class Web3SubscriptionManager<
 	}
 
 	public supportsSubscriptions(): boolean {
-		return isSupportSubscriptions(this.requestManager.provider);
+		return isNullish(this.requestManager.provider)
+			? false
+			: isSupportSubscriptions(this.requestManager.provider);
 	}
 }

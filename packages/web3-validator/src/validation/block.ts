@@ -15,11 +15,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { BlockTags } from '../types';
-import { isHexStrict } from './string';
+import { BlockTags } from 'web3-types';
+import { isUInt } from './numbers';
 
-export const isBlockNumber = (value: string): boolean =>
-	isHexStrict(value) && !value.startsWith('-');
+export const isBlockNumber = (value: string | number | bigint): boolean => isUInt(value);
 
 /**
  * Returns true if the given blockNumber is 'latest', 'pending', or 'earliest.
@@ -30,5 +29,5 @@ export const isBlockTag = (value: string) =>
 /**
  * Returns true if given value is valid hex string and not negative, or is a valid BlockTag
  */
-export const isBlockNumberOrTag = (value: string) =>
-	(isHexStrict(value) && !value.startsWith('-')) || isBlockTag(value);
+export const isBlockNumberOrTag = (value: string | number | bigint) =>
+	isBlockTag(value as string) || isBlockNumber(value);

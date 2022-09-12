@@ -1,4 +1,4 @@
-﻿/*
+/*
 This file is part of web3.js.
 
 web3.js is free software: you can redistribute it and/or modify
@@ -14,9 +14,9 @@ GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-import { WebSocket } from 'isomorphic-ws';
-import { EthExecutionAPI, Web3APIPayload } from 'web3-common';
+import WebSocket from 'isomorphic-ws';
+import { EthExecutionAPI, JsonRpcResponse, Web3APIPayload } from 'web3-types';
+import { ResponseError } from 'web3-errors';
 import WebSocketProvider from '../../src/index';
 import {
 	invalidConnectionStrings,
@@ -31,7 +31,7 @@ describe('WebSocketProvider', () => {
 	let jsonRpcPayload: Web3APIPayload<EthExecutionAPI, 'eth_getBalance'>;
 	let jsonRpcResponse: Record<string, unknown>;
 
-	beforeAll(() => {
+	beforeEach(() => {
 		jest.spyOn(WebSocket.prototype, 'send');
 
 		wsProvider = new WebSocketProvider('ws://localhost:8545');
@@ -105,7 +105,7 @@ describe('WebSocketProvider', () => {
 
 				await wsProvider.request(jsonRpcPayload);
 
-				expect(messageSpy).toHaveBeenCalledWith(null, jsonRpcResponse);
+				expect(messageSpy).toHaveBeenCalledWith(undefined, jsonRpcResponse);
 			});
 		});
 
@@ -114,7 +114,9 @@ describe('WebSocketProvider', () => {
 				// Set `error` attribute to reject from mock
 				const payload = { ...jsonRpcPayload, error: 'my-error' };
 
-				await expect(wsProvider.request(payload)).rejects.toEqual(payload);
+				await expect(wsProvider.request(payload)).rejects.toThrow(
+					new ResponseError(payload as unknown as JsonRpcResponse<any>),
+				);
 			});
 
 			it('should emit message with response as error', async () => {
@@ -124,13 +126,9 @@ describe('WebSocketProvider', () => {
 				const messageSpy = jest.fn();
 				wsProvider.on('message', messageSpy);
 
-				try {
-					await wsProvider.request(payload);
-				} catch {
-					// Do nothing on error
-				}
+				await expect(wsProvider.request(payload)).rejects.toThrow();
 
-				expect(messageSpy).toHaveBeenCalledWith(payload, null);
+				expect(messageSpy).toHaveBeenCalledWith(payload, undefined);
 			});
 		});
 	});

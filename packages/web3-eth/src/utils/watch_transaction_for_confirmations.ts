@@ -15,101 +15,118 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 import {
-	BlockOutput,
-	DataFormat,
+	Bytes,
+	Numbers,
 	EthExecutionAPI,
-	SubscriptionError,
-	format,
-	PromiEvent,
 	Web3BaseProvider,
-} from 'web3-common';
-import { Web3Context } from 'web3-core';
-import { Bytes, HexString32Bytes, numberToHex } from 'web3-utils';
+	BlockHeaderOutput,
+	TransactionReceipt,
+} from 'web3-types';
+import { Web3Context, Web3PromiEvent } from 'web3-core';
+import { DataFormat, format, numberToHex } from 'web3-utils';
+import { isNullish } from 'web3-validator';
 
 import {
 	TransactionMissingReceiptOrBlockHashError,
 	TransactionReceiptMissingBlockNumberError,
 } from '../errors';
-import { ReceiptInfo, SendSignedTransactionEvents, SendTransactionEvents } from '../types';
+import { SendSignedTransactionEvents, SendTransactionEvents } from '../types';
 import { getBlockByNumber } from '../rpc_methods';
 import { NewHeadsSubscription } from '../web3_subscriptions';
+import { transactionReceiptSchema } from '../schemas';
 
-type PromiEventEventTypeBase = SendTransactionEvents | SendSignedTransactionEvents;
-type ReturnFormatBase = DataFormat;
-type WaitProps = {
+type Web3PromiEventEventTypeBase<ReturnFormat extends DataFormat> =
+	| SendTransactionEvents<ReturnFormat>
+	| SendSignedTransactionEvents<ReturnFormat>;
+
+type WaitProps<ReturnFormat extends DataFormat, ResolveType = TransactionReceipt> = {
 	web3Context: Web3Context<EthExecutionAPI>;
-	transactionReceipt: ReceiptInfo;
-	transactionPromiEvent: PromiEvent<ReceiptInfo, PromiEventEventTypeBase>;
-	returnFormat: ReturnFormatBase;
+	transactionReceipt: TransactionReceipt;
+	transactionPromiEvent: Web3PromiEvent<ResolveType, Web3PromiEventEventTypeBase<ReturnFormat>>;
+	returnFormat: ReturnFormat;
 };
 
-const watchByPolling = ({
+const watchByPolling = <ReturnFormat extends DataFormat, ResolveType = TransactionReceipt>({
 	web3Context,
 	transactionReceipt,
 	transactionPromiEvent,
 	returnFormat,
-}: WaitProps) => {
+}: WaitProps<ReturnFormat, ResolveType>) => {
 	// Having a transactionReceipt means that the transaction has already been included
 	// in at least one block, so we start with 1
-	let confirmationNumber = 1;
+	let confirmations = 1;
 	const intervalId = setInterval(() => {
 		(async () => {
-			if (confirmationNumber >= web3Context.transactionConfirmationBlocks)
+			if (confirmations >= web3Context.transactionConfirmationBlocks)
 				clearInterval(intervalId);
 
 			const nextBlock = await getBlockByNumber(
 				web3Context.requestManager,
-				numberToHex(BigInt(transactionReceipt.blockNumber) + BigInt(confirmationNumber)),
+				numberToHex(BigInt(transactionReceipt.blockNumber) + BigInt(confirmations)),
 				false,
 			);
 
 			if (nextBlock?.hash) {
-				confirmationNumber += 1;
+				confirmations += 1;
+
 				transactionPromiEvent.emit('confirmation', {
-					confirmationNumber: format({ eth: 'uint' }, confirmationNumber, returnFormat),
-					receipt: transactionReceipt,
-					latestBlockHash: format({ eth: 'bytes32' }, nextBlock.hash, returnFormat),
+					confirmations: format({ eth: 'uint' }, confirmations, returnFormat),
+					receipt: format(transactionReceiptSchema, transactionReceipt, returnFormat),
+					latestBlockHash: format(
+						{ eth: 'bytes32' },
+						nextBlock.hash as Bytes,
+						returnFormat,
+					),
 				});
 			}
 		})() as unknown;
 	}, web3Context.transactionReceiptPollingInterval ?? web3Context.transactionPollingInterval);
 };
 
-const watchBySubscription = ({
+const watchBySubscription = <ReturnFormat extends DataFormat, ResolveType = TransactionReceipt>({
 	web3Context,
 	transactionReceipt,
 	transactionPromiEvent,
 	returnFormat,
-}: WaitProps) => {
+}: WaitProps<ReturnFormat, ResolveType>) => {
+	// The following variable will stay true except if the data arrived,
+	//	or if watching started after an error had occurred.
+	let needToWatchLater = true;
 	setImmediate(() => {
 		web3Context.subscriptionManager
 			?.subscribe('newHeads')
 			.then((subscription: NewHeadsSubscription) => {
-				subscription.on('data', async (data: BlockOutput) => {
-					if (!data?.number) {
+				subscription.on('data', async (newBlockHeader: BlockHeaderOutput) => {
+					needToWatchLater = false;
+					if (!newBlockHeader?.number) {
 						return;
 					}
-					const confirmationNumber =
-						BigInt(data.number) - BigInt(transactionReceipt.blockNumber) + BigInt(1);
+					const confirmations =
+						BigInt(newBlockHeader.number) -
+						BigInt(transactionReceipt.blockNumber) +
+						BigInt(1);
+
 					transactionPromiEvent.emit('confirmation', {
-						confirmationNumber: format(
+						confirmations: format(
 							{ eth: 'uint' },
-							confirmationNumber,
+							confirmations as Numbers,
 							returnFormat,
 						),
-						receipt: transactionReceipt,
+						receipt: format(transactionReceiptSchema, transactionReceipt, returnFormat),
 						latestBlockHash: format(
 							{ eth: 'bytes32' },
-							data.parentHash as HexString32Bytes,
+							newBlockHeader.parentHash as Bytes,
 							returnFormat,
 						),
 					});
-					if (confirmationNumber >= web3Context.transactionConfirmationBlocks) {
+					if (confirmations >= web3Context.transactionConfirmationBlocks) {
 						await subscription.unsubscribe();
 					}
 				});
 				subscription.on('error', async () => {
 					await subscription.unsubscribe();
+
+					needToWatchLater = false;
 					watchByPolling({
 						web3Context,
 						transactionReceipt,
@@ -119,39 +136,56 @@ const watchBySubscription = ({
 				});
 			})
 			.catch(() => {
-				throw new SubscriptionError(
-					`Failed to subscribe to new newBlockHeaders to confirmation. ${SubscriptionError.convertToString(
-						transactionReceipt,
-					)}`,
-				);
+				needToWatchLater = false;
+				watchByPolling({
+					web3Context,
+					transactionReceipt,
+					transactionPromiEvent,
+					returnFormat,
+				});
 			});
 	});
+
+	// Fallback to polling if tx receipt didn't arrived in "blockHeaderTimeout" [10 seconds]
+	setTimeout(() => {
+		if (needToWatchLater) {
+			watchByPolling({
+				web3Context,
+				transactionReceipt,
+				transactionPromiEvent,
+				returnFormat,
+			});
+		}
+	}, web3Context.blockHeaderTimeout * 1000);
 };
 
 export function watchTransactionForConfirmations<
-	PromiEventEventType extends PromiEventEventTypeBase,
-	ReturnFormat extends ReturnFormatBase,
+	ReturnFormat extends DataFormat,
+	Web3PromiEventEventType extends Web3PromiEventEventTypeBase<ReturnFormat>,
+	ResolveType = TransactionReceipt,
 >(
 	web3Context: Web3Context<EthExecutionAPI>,
-	transactionPromiEvent: PromiEvent<ReceiptInfo, PromiEventEventType>,
-	transactionReceipt: ReceiptInfo,
+	transactionPromiEvent: Web3PromiEvent<ResolveType, Web3PromiEventEventType>,
+	transactionReceipt: TransactionReceipt,
 	transactionHash: Bytes,
 	returnFormat: ReturnFormat,
 ) {
-	if (
-		transactionReceipt === undefined ||
-		transactionReceipt === null ||
-		transactionReceipt.blockHash === undefined ||
-		transactionReceipt.blockHash === null
-	)
+	if (isNullish(transactionReceipt) || isNullish(transactionReceipt.blockHash))
 		throw new TransactionMissingReceiptOrBlockHashError({
 			receipt: transactionReceipt,
 			blockHash: format({ eth: 'bytes32' }, transactionReceipt.blockHash, returnFormat),
 			transactionHash: format({ eth: 'bytes32' }, transactionHash, returnFormat),
 		});
 
-	if (transactionReceipt.blockNumber === undefined || transactionReceipt.blockNumber === null)
+	if (!transactionReceipt.blockNumber)
 		throw new TransactionReceiptMissingBlockNumberError({ receipt: transactionReceipt });
+
+	// As we have the receipt, it's the first confirmation that tx is accepted.
+	transactionPromiEvent.emit('confirmation', {
+		confirmations: format({ eth: 'uint' }, 1, returnFormat),
+		receipt: format(transactionReceiptSchema, transactionReceipt, returnFormat),
+		latestBlockHash: format({ eth: 'bytes32' }, transactionReceipt.blockHash, returnFormat),
+	});
 
 	// so a subscription for newBlockHeaders can be made instead of polling
 	const provider: Web3BaseProvider = web3Context.requestManager.provider as Web3BaseProvider;
@@ -163,6 +197,11 @@ export function watchTransactionForConfirmations<
 			returnFormat,
 		});
 	} else {
-		watchByPolling({ web3Context, transactionReceipt, transactionPromiEvent, returnFormat });
+		watchByPolling({
+			web3Context,
+			transactionReceipt,
+			transactionPromiEvent,
+			returnFormat,
+		});
 	}
 }

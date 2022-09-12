@@ -15,29 +15,35 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { TransactionFactory } from '@ethereumjs/tx';
+import { Address } from 'web3-types';
+import { isHexStrict } from 'web3-utils';
 import { Web3ValidatorError } from 'web3-validator';
-import { isHexStrict, Address, utf8ToHex } from 'web3-utils';
 import {
 	create,
-	privateKeyToAccount,
-	signTransaction,
-	recoverTransaction,
-	hashMessage,
-	sign,
-	recover,
-	encrypt,
 	decrypt,
+	encrypt,
+	hashMessage,
+	privateKeyToAccount,
+	privateKeyToAddress,
+	recover,
+	recoverTransaction,
+	sign,
+	signTransaction,
 } from '../../src/account';
 import {
+	invalidDecryptData,
+	invalidEncryptData,
+	invalidKeyStore,
+	invalidPrivateKeytoAccountData,
+	invalidPrivateKeyToAddressData,
 	signatureRecoverData,
 	transactionsTestData,
-	validPrivateKeytoAccountData,
-	invalidPrivateKeytoAccountData,
-	validEncryptData,
 	validDecryptData,
-	invalidDecryptData,
-	invalidKeyStore,
-	invalidEncryptData,
+	validEncryptData,
+	validHashMessageData,
+	validPrivateKeytoAccountData,
+	validPrivateKeyToAddressData,
 } from '../fixtures/account';
 
 describe('accounts', () => {
@@ -55,10 +61,26 @@ describe('accounts', () => {
 		});
 	});
 
+	describe('privateKeyToAddress', () => {
+		describe('valid cases', () => {
+			it.each(validPrivateKeyToAddressData)('%s', (input, output) => {
+				expect(privateKeyToAddress(input)).toEqual(output);
+			});
+		});
+
+		describe('invalid cases', () => {
+			it.each(invalidPrivateKeyToAddressData)('%s', (input, output) => {
+				expect(() => privateKeyToAddress(input)).toThrow(output);
+			});
+		});
+	});
+
 	describe('privateKeyToAccount', () => {
 		describe('valid cases', () => {
 			it.each(validPrivateKeytoAccountData)('%s', (input, output) => {
-				expect(JSON.stringify(privateKeyToAccount(input))).toEqual(JSON.stringify(output));
+				expect(
+					JSON.stringify(privateKeyToAccount(input.address, input.ignoreLength)),
+				).toEqual(JSON.stringify(output));
 			});
 		});
 
@@ -70,10 +92,13 @@ describe('accounts', () => {
 	});
 
 	describe('Signing and Recovery of Transaction', () => {
-		it.each(transactionsTestData)('sign transaction', txData => {
+		it.each(transactionsTestData)('sign transaction', async txData => {
 			const account = create();
 
-			const signedResult = signTransaction(txData, account.privateKey);
+			const signedResult = await signTransaction(
+				TransactionFactory.fromTxData(txData),
+				account.privateKey,
+			);
 			expect(signedResult).toBeDefined();
 			expect(signedResult.messageHash).toBeDefined();
 			expect(signedResult.rawTransaction).toBeDefined();
@@ -83,10 +108,13 @@ describe('accounts', () => {
 			expect(signedResult.v).toBeDefined();
 		});
 
-		it.each(transactionsTestData)('Recover transaction', txData => {
+		it.each(transactionsTestData)('Recover transaction', async txData => {
 			const account = create();
 			const txObj = { ...txData, from: account.address };
-			const signedResult = signTransaction(txObj, account.privateKey);
+			const signedResult = await signTransaction(
+				TransactionFactory.fromTxData(txObj),
+				account.privateKey,
+			);
 			expect(signedResult).toBeDefined();
 
 			const address: Address = recoverTransaction(signedResult.rawTransaction);
@@ -96,27 +124,24 @@ describe('accounts', () => {
 	});
 
 	describe('Hash Message', () => {
-		it('should hash data correctly using an emoji character', () => {
-			const message = '🤗';
-			const dataHash = '0x716ce69c5d2d629c168bc02e24a961456bdc5a362d366119305aea73978a0332';
-
-			const hashedMessage = hashMessage(message);
-			expect(hashedMessage).toEqual(dataHash);
-
-			const hashedMessageHex = hashMessage(utf8ToHex(message));
-			expect(hashedMessageHex).toEqual(dataHash);
+		it.each(validHashMessageData)('%s', (message, hash) => {
+			expect(hashMessage(message)).toEqual(hash);
 		});
 	});
 
 	describe('Sign Message', () => {
-		it.each(signatureRecoverData)('sign test %s', (data, testObj) => {
-			const result = sign(data, testObj.privateKey);
-			expect(result.signature).toEqual(testObj.signature);
+		describe('sign', () => {
+			it.each(signatureRecoverData)('%s', (data, testObj) => {
+				const result = sign(data, testObj.privateKey);
+				expect(result.signature).toEqual(testObj.signature || testObj.signatureOrV); // makes sure we get signature and not V value
+			});
 		});
 
-		it.each(signatureRecoverData)('recover test %s', (data, testObj) => {
-			const address = recover(data, testObj.signature);
-			expect(address).toEqual(testObj.address);
+		describe('recover', () => {
+			it.each(signatureRecoverData)('%s', (data, testObj) => {
+				const address = recover(data, testObj.signatureOrV, testObj.prefixedOrR, testObj.s);
+				expect(address).toEqual(testObj.address);
+			});
 		});
 	});
 
@@ -158,7 +183,7 @@ describe('accounts', () => {
 				const result = await decrypt(keystore, input[1]);
 
 				expect(JSON.stringify(result)).toEqual(
-					JSON.stringify(privateKeyToAccount(input[3].slice(2))),
+					JSON.stringify(privateKeyToAccount(input[3])),
 				);
 
 				const keystoreString = JSON.stringify(keystore);
@@ -166,7 +191,7 @@ describe('accounts', () => {
 				const stringResult = await decrypt(keystoreString, input[1], true);
 
 				expect(JSON.stringify(stringResult)).toEqual(
-					JSON.stringify(privateKeyToAccount(input[3].slice(2))),
+					JSON.stringify(privateKeyToAccount(input[3])),
 				);
 			});
 		});

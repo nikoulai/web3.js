@@ -207,6 +207,8 @@ export const inValidFunctionsSignatures: { input: any; output: string }[] = [
 	{ input: 345, output: 'Invalid parameter value in encodeFunctionSignature' },
 	{ input: {}, output: 'Invalid parameter value in encodeFunctionSignature' },
 	{ input: ['mystring'], output: 'Invalid parameter value in encodeFunctionSignature' },
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	{ input: null, output: 'Invalid parameter value in encodeFunctionSignature' },
 	{ input: undefined, output: 'Invalid parameter value in encodeFunctionSignature' },
 ];
@@ -238,6 +240,8 @@ export const inValidFunctionsCalls: { input: any; output: string }[] = [
 	{ input: 345, output: 'Invalid parameter value in encodeFunctionCall' },
 	{ input: {}, output: 'Invalid parameter value in encodeFunctionCall' },
 	{ input: ['mystring'], output: 'Invalid parameter value in encodeFunctionCall' },
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	{ input: null, output: 'Invalid parameter value in encodeFunctionCall' },
 	{ input: undefined, output: 'Invalid parameter value in encodeFunctionCall' },
 ];
@@ -270,6 +274,8 @@ export const invalidEventsSignatures: { input: any; output: string }[] = [
 	{ input: 345, output: 'Invalid parameter value in encodeEventSignature' },
 	{ input: {}, output: 'Invalid parameter value in encodeEventSignature' },
 	{ input: ['mystring'], output: 'Invalid parameter value in encodeEventSignature' },
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	{ input: null, output: 'Invalid parameter value in encodeEventSignature' },
 	{ input: undefined, output: 'Invalid parameter value in encodeEventSignature' },
 ];
@@ -348,11 +354,48 @@ export const validDecodeLogsData: {
 			str: 'b',
 		},
 	},
+	{
+		input: {
+			abi: [
+				{
+					indexed: true,
+					name: 'from',
+					type: 'address',
+				},
+				{
+					indexed: true,
+					name: 'to',
+					type: 'address',
+				},
+				{
+					indexed: false,
+					name: 'value',
+					type: 'uint256',
+				},
+			],
+			topics: [
+				'0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
+				'0x0000000000000000000000006e599da0bff7a6598ac1224e4985430bf16458a4',
+				'0x0000000000000000000000006f1df96865d09d21e8f3f9a7fba3b17a11c7c53c',
+			],
+			data: '0x00000000000000000000000000000000000000000000000000000000000186a0',
+		},
+		output: {
+			'0': '0x6E599DA0bfF7A6598AC1224E4985430Bf16458a4',
+			'1': '0x6f1DF96865D09d21e8f3f9a7fbA3b17A11c7C53C',
+			'2': '100000',
+			__length__: 3,
+			from: '0x6E599DA0bfF7A6598AC1224E4985430Bf16458a4',
+			to: '0x6f1DF96865D09d21e8f3f9a7fbA3b17A11c7C53C',
+			value: '100000',
+		},
+	},
 ];
 
 export const validEncodeDecodeParametersData: {
 	input: Parameters<typeof encodeParameters>;
 	output: ReturnType<typeof encodeParameters>;
+	outputResult: any;
 }[] = [
 	{
 		input: [
@@ -360,6 +403,11 @@ export const validEncodeDecodeParametersData: {
 			['2345675643', 'Hello!%'],
 		],
 		output: '0x000000000000000000000000000000000000000000000000000000008bd02b7b0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000748656c6c6f212500000000000000000000000000000000000000000000000000',
+		outputResult: {
+			'0': '2345675643',
+			'1': 'Hello!%',
+			__length__: 2,
+		},
 	},
 	{
 		input: [
@@ -367,6 +415,11 @@ export const validEncodeDecodeParametersData: {
 			[['34', '255'], '0x324567fff0000000000000000000000000000000000000000000000000000000'],
 		],
 		output: '0x0000000000000000000000000000000000000000000000000000000000000040324567fff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000ff',
+		outputResult: {
+			'0': ['34', '255'],
+			'1': '0x324567fff0000000000000000000000000000000000000000000000000000000',
+			__length__: 2,
+		},
 	},
 	{
 		input: [
@@ -396,6 +449,28 @@ export const validEncodeDecodeParametersData: {
 			],
 		],
 		output: '0x00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000002a0000000000000000000000000000000000000000000000000000000000000038000000000000000000000000000000000000000000000000000000000000002d000000000000000000000000000000000000000000000000000000000000004e0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000ff',
+		outputResult: {
+			'0': ['34', '255'],
+			'1': {
+				'0': '42',
+				'1': '56',
+				'2': {
+					'0': '45',
+					'1': '78',
+					propertyOne: '45',
+					propertyTwo: '78',
+				},
+				propertyOne: '42',
+				propertyTwo: '56',
+				ChildStruct: {
+					'0': '45',
+					'1': '78',
+					propertyOne: '45',
+					propertyTwo: '78',
+				},
+			},
+			__length__: 2,
+		},
 	},
 ];
 
@@ -520,6 +595,8 @@ export const inValidEncodeParametersData: {
 		output: 'Parameter encoding error',
 	},
 	{
+		// Using "null" value intentionally for validation
+		// eslint-disable-next-line no-null/no-null
 		input: [null, ['2345675643', 'Hello!%']],
 		output: 'Parameter encoding error',
 	},
@@ -528,6 +605,7 @@ export const inValidEncodeParametersData: {
 export const validDecodeParametersData: {
 	input: Parameters<typeof decodeParameters>;
 	output: unknown[];
+	outputResult: any;
 }[] = [
 	{
 		input: [
@@ -535,6 +613,11 @@ export const validDecodeParametersData: {
 			'0x000000000000000000000000000000000000000000000000000000008bd02b7b0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000748656c6c6f212500000000000000000000000000000000000000000000000000',
 		],
 		output: ['2345675643', 'Hello!%'],
+		outputResult: {
+			'0': '2345675643',
+			'1': 'Hello!%',
+			__length__: 2,
+		},
 	},
 	{
 		input: [
@@ -545,6 +628,11 @@ export const validDecodeParametersData: {
 			['34', '255'],
 			'0x324567fff0000000000000000000000000000000000000000000000000000000',
 		],
+		outputResult: {
+			'0': ['34', '255'],
+			'1': '0x324567fff0000000000000000000000000000000000000000000000000000000',
+			__length__: 2,
+		},
 	},
 	{
 		input: [
@@ -574,6 +662,28 @@ export const validDecodeParametersData: {
 				},
 			},
 		],
+		outputResult: {
+			'0': ['34', '255'],
+			'1': {
+				'0': '42',
+				'1': '56',
+				'2': {
+					'0': '45',
+					'1': '78',
+					propertyOne: '45',
+					propertyTwo: '78',
+				},
+				propertyOne: '42',
+				propertyTwo: '56',
+				ChildStruct: {
+					'0': '45',
+					'1': '78',
+					propertyOne: '45',
+					propertyTwo: '78',
+				},
+			},
+			__length__: 2,
+		},
 	},
 ];
 
@@ -598,6 +708,8 @@ export const inValidDecodeParametersData: {
 		output: 'Parameter decoding error',
 	},
 	{
+		// Using "null" value intentionally for validation
+		// eslint-disable-next-line no-null/no-null
 		input: [null, '0x000000000010'],
 		output: 'Parameter decoding error',
 	},

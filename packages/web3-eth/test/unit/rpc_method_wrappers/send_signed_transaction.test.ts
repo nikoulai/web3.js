@@ -16,26 +16,25 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 import { Web3Context } from 'web3-core';
 
-import { DEFAULT_RETURN_FORMAT, format } from 'web3-common';
+import { DEFAULT_RETURN_FORMAT, format } from 'web3-utils';
 import * as rpcMethods from '../../../src/rpc_methods';
 import { Web3EthExecutionAPI } from '../../../src/web3_eth_execution_api';
 import { sendSignedTransaction } from '../../../src/rpc_method_wrappers';
 import * as WaitForTransactionReceipt from '../../../src/utils/wait_for_transaction_receipt';
 import * as WatchTransactionForConfirmations from '../../../src/utils/watch_transaction_for_confirmations';
 import {
-	expectedReceiptInfo,
+	expectedTransactionReceipt,
 	expectedTransactionHash,
 	testData,
 } from './fixtures/send_signed_transaction';
-import { receiptInfoSchema } from '../../../src/schemas';
+import { transactionReceiptSchema } from '../../../src/schemas';
 
 jest.mock('../../../src/rpc_methods');
-jest.mock('../../../src/utils/wait_for_transaction_receipt');
 jest.mock('../../../src/utils/watch_transaction_for_confirmations');
 
 describe('sendTransaction', () => {
 	const testMessage =
-		'Title: %s\ninputSignedTransaction: %s\nexpectedTransactionHash: %s\nexpectedReceiptInfo: %s\n';
+		'Title: %s\ninputSignedTransaction: %s\nexpectedTransactionHash: %s\nexpectedTransactionReceipt: %s\n';
 
 	let web3Context: Web3Context<Web3EthExecutionAPI>;
 
@@ -48,28 +47,34 @@ describe('sendTransaction', () => {
 	it.each(testData)(
 		`sending event should emit with inputSignedTransaction\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
-			return new Promise(done => {
-				const inputSignedTransactionFormatted = format(
-					{ eth: 'bytes' },
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				const promiEvent = sendSignedTransaction(
-					web3Context,
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				promiEvent.on('sending', signedTransaction => {
-					expect(signedTransaction).toStrictEqual(inputSignedTransactionFormatted);
-					done(null);
-				});
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
+			);
+
+			const inputSignedTransactionFormatted = format(
+				{ eth: 'bytes' },
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			);
+			await sendSignedTransaction(
+				web3Context,
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			).on('sending', signedTransaction => {
+				expect(signedTransaction).toStrictEqual(inputSignedTransactionFormatted);
 			});
+
+			expect.assertions(1);
 		},
 	);
 
 	it.each(testData)(
 		`should call rpcMethods.sendRawTransaction with expected parameters\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
+			);
+
 			const inputSignedTransactionFormatted = format(
 				{ eth: 'bytes' },
 				inputSignedTransaction,
@@ -86,43 +91,48 @@ describe('sendTransaction', () => {
 	it.each(testData)(
 		`sent event should emit with inputSignedTransaction\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
-			return new Promise(done => {
-				const inputSignedTransactionFormatted = format(
-					{ eth: 'bytes' },
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				const promiEvent = sendSignedTransaction(
-					web3Context,
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				promiEvent.on('sent', signedTransaction => {
-					expect(signedTransaction).toStrictEqual(inputSignedTransactionFormatted);
-					done(null);
-				});
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
+			);
+
+			const inputSignedTransactionFormatted = format(
+				{ eth: 'bytes' },
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			);
+
+			await sendSignedTransaction(
+				web3Context,
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			).on('sent', signedTransaction => {
+				expect(signedTransaction).toStrictEqual(inputSignedTransactionFormatted);
 			});
+
+			expect.assertions(1);
 		},
 	);
 
 	it.each(testData)(
 		`transactionHash event should emit with inputSignedTransaction\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
-			return new Promise(done => {
-				(rpcMethods.sendRawTransaction as jest.Mock).mockResolvedValueOnce(
-					expectedTransactionHash,
-				);
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
+			);
 
-				const promiEvent = sendSignedTransaction(
-					web3Context,
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				promiEvent.on('transactionHash', transactionHash => {
-					expect(transactionHash).toStrictEqual(expectedTransactionHash);
-					done(null);
-				});
+			(rpcMethods.sendRawTransaction as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionHash,
+			);
+
+			await sendSignedTransaction(
+				web3Context,
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			).on('transactionHash', transactionHash => {
+				expect(transactionHash).toStrictEqual(expectedTransactionHash);
 			});
+
+			expect.assertions(1);
 		},
 	);
 
@@ -131,6 +141,9 @@ describe('sendTransaction', () => {
 		async (_, inputSignedTransaction) => {
 			(rpcMethods.sendRawTransaction as jest.Mock).mockResolvedValueOnce(
 				expectedTransactionHash,
+			);
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
 			);
 
 			await sendSignedTransaction(web3Context, inputSignedTransaction, DEFAULT_RETURN_FORMAT);
@@ -144,22 +157,16 @@ describe('sendTransaction', () => {
 	it.each(testData)(
 		`waitForTransactionReceipt is called when expected\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
-			const waitForTransactionReceiptSpy = jest.spyOn(
-				WaitForTransactionReceipt,
-				'waitForTransactionReceipt',
-			);
+			const waitForTransactionReceiptSpy = jest
+				.spyOn(WaitForTransactionReceipt, 'waitForTransactionReceipt')
+				.mockResolvedValueOnce(expectedTransactionReceipt);
 
 			(rpcMethods.sendRawTransaction as jest.Mock).mockResolvedValueOnce(
 				expectedTransactionHash,
 			);
-			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(null);
 
 			await sendSignedTransaction(web3Context, inputSignedTransaction, DEFAULT_RETURN_FORMAT);
 
-			expect(rpcMethods.getTransactionReceipt).toHaveBeenCalledWith(
-				web3Context.requestManager,
-				expectedTransactionHash,
-			);
 			expect(waitForTransactionReceiptSpy).toHaveBeenCalledWith(
 				web3Context,
 				expectedTransactionHash,
@@ -171,41 +178,39 @@ describe('sendTransaction', () => {
 	it.each(testData)(
 		`receipt event should emit with inputSignedTransaction\n ${testMessage}`,
 		async (_, inputSignedTransaction) => {
-			return new Promise(done => {
-				const formattedReceiptInfo = format(
-					receiptInfoSchema,
-					expectedReceiptInfo,
-					DEFAULT_RETURN_FORMAT,
-				);
-
-				(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
-					expectedReceiptInfo,
-				);
-
-				const promiEvent = sendSignedTransaction(
-					web3Context,
-					inputSignedTransaction,
-					DEFAULT_RETURN_FORMAT,
-				);
-				promiEvent.on('receipt', receiptInfo => {
-					expect(receiptInfo).toStrictEqual(formattedReceiptInfo);
-					done(null);
-				});
-			});
-		},
-	);
-
-	it.each(testData)(
-		`should resolve promiEvent with expectedReceiptInfo\n ${testMessage}`,
-		async (_, inputSignedTransaction) => {
-			const formattedReceiptInfo = format(
-				receiptInfoSchema,
-				expectedReceiptInfo,
+			const formattedTransactionReceipt = format(
+				transactionReceiptSchema,
+				expectedTransactionReceipt,
 				DEFAULT_RETURN_FORMAT,
 			);
 
 			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
-				expectedReceiptInfo,
+				expectedTransactionReceipt,
+			);
+
+			await sendSignedTransaction(
+				web3Context,
+				inputSignedTransaction,
+				DEFAULT_RETURN_FORMAT,
+			).on('receipt', receiptInfo => {
+				expect(receiptInfo).toStrictEqual(formattedTransactionReceipt);
+			});
+
+			expect.assertions(1);
+		},
+	);
+
+	it.each(testData)(
+		`should resolve Web3PromiEvent with expectedTransactionReceipt\n ${testMessage}`,
+		async (_, inputSignedTransaction) => {
+			const formattedTransactionReceipt = format(
+				transactionReceiptSchema,
+				expectedTransactionReceipt,
+				DEFAULT_RETURN_FORMAT,
+			);
+
+			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
+				expectedTransactionReceipt,
 			);
 			expect(
 				await sendSignedTransaction(
@@ -213,7 +218,7 @@ describe('sendTransaction', () => {
 					inputSignedTransaction,
 					DEFAULT_RETURN_FORMAT,
 				),
-			).toStrictEqual(formattedReceiptInfo);
+			).toStrictEqual(formattedTransactionReceipt);
 		},
 	);
 
@@ -224,9 +229,9 @@ describe('sendTransaction', () => {
 				WatchTransactionForConfirmations,
 				'watchTransactionForConfirmations',
 			);
-			const formattedReceiptInfo = format(
-				receiptInfoSchema,
-				expectedReceiptInfo,
+			const formattedTransactionReceipt = format(
+				transactionReceiptSchema,
+				expectedTransactionReceipt,
 				DEFAULT_RETURN_FORMAT,
 			);
 
@@ -234,15 +239,15 @@ describe('sendTransaction', () => {
 				expectedTransactionHash,
 			);
 			(rpcMethods.getTransactionReceipt as jest.Mock).mockResolvedValueOnce(
-				expectedReceiptInfo,
+				expectedTransactionReceipt,
 			);
 
 			const promiEvent = sendSignedTransaction(
 				web3Context,
 				inputTransaction,
 				DEFAULT_RETURN_FORMAT,
-			);
-			promiEvent.on('confirmation', () => undefined);
+			).on('confirmation', () => undefined);
+
 			await promiEvent;
 
 			expect(rpcMethods.getTransactionReceipt).toHaveBeenCalledWith(
@@ -252,7 +257,7 @@ describe('sendTransaction', () => {
 			expect(watchTransactionForConfirmationsSpy).toHaveBeenCalledWith(
 				web3Context,
 				promiEvent,
-				formattedReceiptInfo,
+				formattedTransactionReceipt,
 				expectedTransactionHash,
 				DEFAULT_RETURN_FORMAT,
 			);

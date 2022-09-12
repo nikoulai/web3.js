@@ -15,19 +15,18 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { getBlock, ReceiptInfo } from 'web3-eth';
-import { Web3Context, SupportedProviders, Web3ContextObject } from 'web3-core';
-import { getId, Web3NetAPI } from 'web3-net';
-import { Address } from 'web3-utils';
+import { getBlock } from 'web3-eth';
 import {
 	RevertInstructionError,
-	EthExecutionAPI,
-	ENSUnsupportedNetworkError,
 	ENSNetworkNotSyncedError,
-	DEFAULT_RETURN_FORMAT,
-} from 'web3-common';
+	ENSUnsupportedNetworkError,
+} from 'web3-errors';
+import { Web3Context, Web3ContextObject } from 'web3-core';
+import { getId, Web3NetAPI } from 'web3-net';
+import { Address, SupportedProviders, EthExecutionAPI, TransactionReceipt } from 'web3-types';
+import { DEFAULT_RETURN_FORMAT, FormatType, FMT_NUMBER, DataFormat } from 'web3-utils';
 import { NonPayableCallOptions, Contract } from 'web3-eth-contract';
-import { RESOLVER } from './abi/resolver';
+import { PublicResolverAbi } from './abi/ens/PublicResolver';
 import { Registry } from './registry';
 import { registryAddresses } from './config';
 import { Resolver } from './resolver';
@@ -36,27 +35,26 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 	public registryAddress: string;
 	private readonly _registry: Registry;
 	private readonly _resolver: Resolver;
-	private _detectedAddress: string | null;
-	private _lastSyncCheck: number | null;
+	private _detectedAddress?: string;
+	private _lastSyncCheck?: number;
 
 	public constructor(
 		registryAddr?: string,
 		provider?:
 			| SupportedProviders<EthExecutionAPI & Web3NetAPI>
-			| Web3ContextObject<EthExecutionAPI & Web3NetAPI>,
+			| Web3ContextObject<EthExecutionAPI & Web3NetAPI>
+			| string,
 	) {
 		super(provider ?? '');
 		this.registryAddress = registryAddr ?? registryAddresses.main; // will default to main registry address
-		this._registry = new Registry(registryAddr);
+		this._registry = new Registry(this.getContextObject(), registryAddr);
 		this._resolver = new Resolver(this._registry);
-		this._lastSyncCheck = null;
-		this._detectedAddress = null;
 	}
 
 	/**
 	 * Returns the Resolver by the given address
 	 */
-	public async getResolver(name: string): Promise<Contract<typeof RESOLVER>> {
+	public async getResolver(name: string): Promise<Contract<typeof PublicResolverAbi>> {
 		return this._registry.getResolver(name);
 	}
 
@@ -67,8 +65,12 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		name: string,
 		address: Address,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
-		return this._registry.setResolver(name, address, txConfig);
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<
+		| FormatType<TransactionReceipt, typeof DEFAULT_RETURN_FORMAT>
+		| FormatType<RevertInstructionError, typeof DEFAULT_RETURN_FORMAT>
+	> {
+		return this._registry.setResolver(name, address, txConfig, returnFormat);
 	}
 
 	/**
@@ -81,8 +83,17 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		resolver: Address,
 		ttl: number,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
-		return this._registry.setSubnodeRecord(name, label, owner, resolver, ttl, txConfig);
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<TransactionReceipt | RevertInstructionError> {
+		return this._registry.setSubnodeRecord(
+			name,
+			label,
+			owner,
+			resolver,
+			ttl,
+			txConfig,
+			returnFormat,
+		);
 	}
 
 	/**
@@ -92,15 +103,19 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		operator: Address,
 		approved: boolean,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
+	): Promise<TransactionReceipt | RevertInstructionError> {
 		return this._registry.setApprovalForAll(operator, approved, txConfig);
 	}
 
 	/**
 	 * Returns true if the operator is approved
 	 */
-	public async isApprovedForAll(owner: Address, operator: Address): Promise<unknown> {
-		return this._registry.isApprovedForAll(owner, operator);
+	public async isApprovedForAll(
+		owner: Address,
+		operator: Address,
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<unknown> {
+		return this._registry.isApprovedForAll(owner, operator, returnFormat);
 	}
 
 	/**
@@ -114,12 +129,13 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 	 * Returns the address of the owner of an ENS name.
 	 */
 	public async setSubnodeOwner(
-		name: string,
+		node: string,
 		label: string,
 		address: Address,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
-		return this._registry.setSubnodeOwner(name, label, address, txConfig);
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<TransactionReceipt | RevertInstructionError> {
+		return this._registry.setSubnodeOwner(node, label, address, txConfig, returnFormat);
 	}
 
 	/**
@@ -136,7 +152,7 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		name: string,
 		ttl: number,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
+	): Promise<TransactionReceipt | RevertInstructionError> {
 		return this._registry.setTTL(name, ttl, txConfig);
 	}
 
@@ -154,8 +170,9 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		name: string,
 		address: Address,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
-		return this._registry.setOwner(name, address, txConfig);
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<TransactionReceipt | RevertInstructionError> {
+		return this._registry.setOwner(name, address, txConfig, returnFormat);
 	}
 
 	/**
@@ -167,7 +184,7 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		resolver: Address,
 		ttl: number,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
+	): Promise<TransactionReceipt | RevertInstructionError> {
 		return this._registry.setRecord(name, owner, resolver, ttl, txConfig);
 	}
 
@@ -178,8 +195,9 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		name: string,
 		address: Address,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
-		return this._resolver.setAddress(name, address, txConfig);
+		returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+	): Promise<TransactionReceipt | RevertInstructionError> {
+		return this._resolver.setAddress(name, address, txConfig, returnFormat);
 	}
 
 	/*
@@ -190,7 +208,7 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		x: string,
 		y: string,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
+	): Promise<TransactionReceipt | RevertInstructionError> {
 		return this._resolver.setPubkey(name, x, y, txConfig);
 	}
 
@@ -201,7 +219,7 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		name: string,
 		hash: string,
 		txConfig: NonPayableCallOptions,
-	): Promise<ReceiptInfo | RevertInstructionError> {
+	): Promise<TransactionReceipt | RevertInstructionError> {
 		return this._resolver.setContenthash(name, hash, txConfig);
 	}
 
@@ -246,7 +264,10 @@ export class ENS extends Web3Context<EthExecutionAPI & Web3NetAPI> {
 		if (this._detectedAddress) {
 			return this._detectedAddress;
 		}
-		const networkType = await getId(this, DEFAULT_RETURN_FORMAT); // get the network from provider
+		const networkType = await getId(this, {
+			...DEFAULT_RETURN_FORMAT,
+			number: FMT_NUMBER.HEX,
+		}); // get the network from provider
 		const addr = registryAddresses[networkType];
 
 		if (typeof addr === 'undefined') {

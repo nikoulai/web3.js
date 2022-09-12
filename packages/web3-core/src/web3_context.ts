@@ -20,15 +20,17 @@ import {
 	Web3BaseWallet,
 	Web3BaseWalletAccount,
 	Web3AccountProvider,
-} from 'web3-common';
-import { HexString } from 'web3-utils';
-import { SupportedProviders } from './types';
+	SupportedProviders,
+	HexString,
+} from 'web3-types';
+import { isNullish } from 'web3-utils';
 import { isSupportedProvider } from './utils';
 // eslint-disable-next-line import/no-cycle
 import { Web3Config, Web3ConfigEvent, Web3ConfigOptions } from './web3_config';
 import { Web3RequestManager } from './web3_request_manager';
 import { Web3SubscriptionConstructor } from './web3_subscriptions';
 import { Web3SubscriptionManager } from './web3_subscription_manager';
+import { Web3BatchRequest } from './web3_batch_request';
 
 // To avoid circular dependencies, we need to export type from here.
 export type Web3ContextObject<
@@ -40,7 +42,7 @@ export type Web3ContextObject<
 	} = any,
 > = {
 	config: Web3ConfigOptions;
-	provider: SupportedProviders<API>;
+	provider?: SupportedProviders<API> | string;
 	requestManager: Web3RequestManager<API>;
 	subscriptionManager?: Web3SubscriptionManager<API, RegisteredSubs> | undefined;
 	registeredSubscriptions?: RegisteredSubs;
@@ -58,7 +60,7 @@ export type Web3ContextInitOptions<
 	} = any,
 > = {
 	config?: Partial<Web3ConfigOptions>;
-	provider: SupportedProviders<API>;
+	provider?: SupportedProviders<API> | string;
 	requestManager?: Web3RequestManager<API>;
 	subscriptionManager?: Web3SubscriptionManager<API, RegisteredSubs> | undefined;
 	registeredSubscriptions?: RegisteredSubs;
@@ -91,21 +93,31 @@ export class Web3Context<
 	public static readonly providers = Web3RequestManager.providers;
 	public static givenProvider?: SupportedProviders<never>;
 	public readonly providers = Web3RequestManager.providers;
-	private _requestManager: Web3RequestManager<API>;
-	private _subscriptionManager?: Web3SubscriptionManager<API, RegisteredSubs>;
-	private _accountProvider?: Web3AccountProvider<Web3BaseWalletAccount>;
-	private _wallet?: Web3BaseWallet<Web3BaseWalletAccount>;
+	protected _requestManager: Web3RequestManager<API>;
+	protected _subscriptionManager?: Web3SubscriptionManager<API, RegisteredSubs>;
+	protected _accountProvider?: Web3AccountProvider<Web3BaseWalletAccount>;
+	protected _wallet?: Web3BaseWallet<Web3BaseWalletAccount>;
 
 	public constructor(
-		providerOrContext: SupportedProviders<API> | Web3ContextInitOptions<API, RegisteredSubs>,
+		providerOrContext?:
+			| string
+			| SupportedProviders<API>
+			| Web3ContextInitOptions<API, RegisteredSubs>,
 	) {
 		super();
+
+		// If "providerOrContext" is provided as "string" or an objects matching "SupportedProviders" interface
 		if (
-			typeof providerOrContext === 'string' ||
+			isNullish(providerOrContext) ||
+			(typeof providerOrContext === 'string' && providerOrContext.trim() !== '') ||
 			isSupportedProvider(providerOrContext as SupportedProviders<API>)
 		) {
 			this._requestManager = new Web3RequestManager<API>(
-				providerOrContext as SupportedProviders<API>,
+				providerOrContext as undefined | string | SupportedProviders<API>,
+			);
+			this._subscriptionManager = new Web3SubscriptionManager(
+				this._requestManager,
+				{} as RegisteredSubs,
 			);
 
 			return;
@@ -119,7 +131,7 @@ export class Web3Context<
 			registeredSubscriptions,
 			accountProvider,
 			wallet,
-		} = providerOrContext as Partial<Web3ContextObject<API, RegisteredSubs>>;
+		} = providerOrContext as Web3ContextInitOptions<API, RegisteredSubs>;
 
 		this.setConfig(config ?? {});
 
@@ -220,20 +232,37 @@ export class Web3Context<
 		});
 	}
 
-	public get provider(): SupportedProviders<API> {
+	public get provider(): SupportedProviders<API> | string | undefined {
 		return this.requestManager.provider;
 	}
 
-	public set provider(provider: SupportedProviders<API>) {
+	public set provider(provider: SupportedProviders<API> | string | undefined) {
 		this.requestManager.setProvider(provider);
 	}
 
-	public get currentProvider(): SupportedProviders<API> {
+	public get currentProvider(): SupportedProviders<API> | string | undefined {
 		return this.requestManager.provider;
 	}
 
-	public set currentProvider(provider: SupportedProviders<API>) {
+	public set currentProvider(provider: SupportedProviders<API> | string | undefined) {
 		this.requestManager.setProvider(provider);
+	}
+
+	// eslint-disable-next-line class-methods-use-this
+	public get givenProvider() {
+		return Web3Context.givenProvider;
+	}
+
+	public setProvider(provider?: SupportedProviders<API> | string): boolean {
+		this.provider = provider;
+		return true;
+	}
+
+	public get BatchRequest(): new () => Web3BatchRequest {
+		return Web3BatchRequest.bind(
+			undefined,
+			this._requestManager as unknown as Web3RequestManager,
+		);
 	}
 }
 

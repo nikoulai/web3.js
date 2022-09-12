@@ -15,7 +15,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 import { Web3Context } from 'web3-core';
-import { DEFAULT_RETURN_FORMAT, FMT_BYTES, FMT_NUMBER, format } from 'web3-common';
+import { DEFAULT_RETURN_FORMAT, ETH_DATA_FORMAT, FMT_BYTES, FMT_NUMBER, format } from 'web3-utils';
+import { isNullish } from 'web3-validator';
 
 import { getTransactionCount as rpcMethodsGetTransactionCount } from '../../../src/rpc_methods';
 import { Web3EthExecutionAPI } from '../../../src/web3_eth_execution_api';
@@ -38,13 +39,13 @@ describe('getTransactionCount', () => {
 
 			let inputBlockNumberFormatted;
 
-			if (inputBlockNumber === undefined) {
+			if (isNullish(inputBlockNumber)) {
 				inputBlockNumberFormatted = web3Context.defaultBlock;
 			} else {
 				inputBlockNumberFormatted = format(
 					{ eth: 'uint' },
 					inputBlockNumber,
-					DEFAULT_RETURN_FORMAT,
+					ETH_DATA_FORMAT,
 				);
 			}
 

@@ -15,13 +15,17 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { TransactionWithSender } from 'web3-common';
+import { TransactionWithSenderAPI, TransactionCall, HexString } from 'web3-types';
 import { AbiFunctionFragment } from 'web3-eth-abi';
-import { mergeDeep } from 'web3-utils';
-import { TransactionCall } from 'web3-eth';
+import { isNullish, mergeDeep } from 'web3-utils';
 import { encodeMethodABI } from './encoding';
 import { Web3ContractError } from './errors';
-import { NonPayableCallOptions, PayableCallOptions, ContractOptions } from './types';
+import {
+	NonPayableCallOptions,
+	PayableCallOptions,
+	ContractOptions,
+	Web3ContractContext,
+} from './types';
 
 export const getSendTxParams = ({
 	abi,
@@ -34,7 +38,9 @@ export const getSendTxParams = ({
 	options?: PayableCallOptions | NonPayableCallOptions;
 	contractOptions: ContractOptions;
 }): TransactionCall => {
-	if (!options?.to && !contractOptions.address) {
+	const deploymentCall = options?.data ?? contractOptions.data;
+
+	if (!deploymentCall && !options?.to && !contractOptions.address) {
 		throw new Web3ContractError('Contract address not specified');
 	}
 
@@ -53,10 +59,10 @@ export const getSendTxParams = ({
 		options as unknown as Record<string, unknown>,
 	) as unknown as TransactionCall;
 
-	if (!txParams.data) {
+	if (!txParams.data || abi.type === 'constructor') {
 		txParams = {
 			...txParams,
-			data: encodeMethodABI(abi, params, txParams.data),
+			data: encodeMethodABI(abi, params, txParams.data as HexString),
 		};
 	}
 
@@ -109,11 +115,7 @@ export const getEstimateGasParams = ({
 	params: unknown[];
 	options?: PayableCallOptions | NonPayableCallOptions;
 	contractOptions: ContractOptions;
-}): Partial<TransactionWithSender> => {
-	if (!options?.to && !contractOptions.address) {
-		throw new Web3ContractError('Contract address not specified');
-	}
-
+}): Partial<TransactionWithSenderAPI> => {
 	let txParams = mergeDeep(
 		{
 			to: contractOptions.address,
@@ -132,5 +134,15 @@ export const getEstimateGasParams = ({
 		};
 	}
 
-	return txParams as TransactionWithSender;
+	return txParams as TransactionWithSenderAPI;
 };
+
+export const isContractInitOptions = (options: unknown): options is ContractOptions =>
+	typeof options === 'object' &&
+	!isNullish(options) &&
+	['data', 'from', 'gas', 'gasPrice', 'gasLimit', 'address', 'jsonInterface'].some(
+		key => key in options,
+	);
+
+export const isWeb3ContractContext = (options: unknown): options is Web3ContractContext =>
+	typeof options === 'object' && !isNullish(options) && !isContractInitOptions(options);

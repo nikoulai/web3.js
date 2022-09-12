@@ -15,8 +15,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { Address, Bytes, HexString, Numbers, ValueTypes } from 'web3-types';
 import { EtherUnits } from '../../src/converters';
-import { Address, Bytes, HexString, Numbers, ValueTypes } from '../../src/types';
 
 export const bytesToHexValidData: [Bytes, HexString][] = [
 	[new Uint8Array([72]), '0x48'],
@@ -36,9 +36,13 @@ export const bytesToHexInvalidData: [any, string][] = [
 	['data', 'value "data" at "/0" must pass "bytes" validation'],
 	[12, 'value "12" at "/0" must pass "bytes" validation'],
 	[['string'], 'value "string" at "/0" must pass "bytes" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[null, 'value at "/0" must pass "bytes" validation'],
 	[undefined, 'value at "/0" must pass "bytes" validation'],
 	[{}, 'value "[object Object]" at "/0" must pass "bytes" validation'],
+	['1', 'value "1" at "/0" must pass "bytes" validation'],
+	['0', 'value "0" at "/0" must pass "bytes" validation'],
 ];
 
 export const hexToBytesValidData: [HexString, Buffer][] = [
@@ -60,6 +64,8 @@ export const hexToBytesInvalidData: [any, string][] = [
 	['data', 'value "data" at "/0" must pass "bytes" validation'],
 	[12, 'value "12" at "/0" must pass "bytes" validation'],
 	[['string'], 'value "string" at "/0" must pass "bytes" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[null, 'value at "/0" must pass "bytes" validation'],
 	[undefined, 'value at "/0" must pass "bytes" validation'],
 	[{}, 'value "[object Object]" at "/0" must pass "bytes" validation'],
@@ -71,7 +77,6 @@ export const numberToHexValidData: [Numbers, HexString][] = [
 	[256, '0x100'],
 	[54, '0x36'],
 	[BigInt(12), '0xc'],
-	[12n, '0xc'],
 	['768', '0x300'],
 	['-768', '-0x300'],
 	[-255, '-0xff'],
@@ -85,6 +90,8 @@ export const numberToHexInvalidData: [any, string][] = [
 	[12.2, 'value "12.2" at "/0" must pass "int" validation'],
 	['0xag', 'value "0xag" at "/0" must pass "int" validation'],
 	['122g', 'value "122g" at "/0" must pass "int" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[null, 'value at "/0" must pass "int" validation'],
 	[undefined, 'value at "/0" must pass "int" validation'],
 	[{}, 'value "[object Object]" at "/0" must pass "int" validation'],
@@ -128,7 +135,8 @@ export const utf8ToHexValidData: [string, HexString][] = [
 export const utf8ToHexInvalidData: [any, string][] = [
 	[12, 'value "12" at "/0" must pass "string" validation'],
 	[BigInt(12), 'value "12" at "/0" must pass "string" validation'],
-	[12n, 'value "12" at "/0" must pass "string" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[null, 'value at "/0" must pass "string" validation'],
 	[undefined, 'value at "/0" must pass "string" validation'],
 	[{}, 'value "[object Object]" at "/0" must pass "string" validation'],
@@ -152,6 +160,8 @@ export const hexToUtf8InvalidData: [any, string][] = [
 		'value "0x4920686176652031303g0c2a3" at "/0" must pass "bytes" validation',
 	],
 	['afde', 'value "afde" at "/0" must pass "bytes" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[null, 'value at "/0" must pass "bytes" validation'],
 	[undefined, 'value at "/0" must pass "bytes" validation'],
 	[{}, 'value "[object Object]" at "/0" must pass "bytes" validation'],
@@ -185,7 +195,6 @@ export const toHexValidData: [Numbers | Bytes | Address | boolean, [HexString, V
 	[255, ['0xff', 'uint256']],
 	[256, ['0x100', 'uint256']],
 	[BigInt(12), ['0xc', 'bigint']],
-	[12n, ['0xc', 'bigint']],
 	['768', ['0x373638', 'string']],
 	['-768', ['0x2d373638', 'string']],
 	[-255, ['-0xff', 'int256']],
@@ -204,7 +213,6 @@ const conversionBaseData: [[Numbers, EtherUnits], string][] = [
 	[[123, 'wei'], '123'],
 	[['123', 'wei'], '123'],
 	[[BigInt(123), 'wei'], '123'],
-	[[123n, 'wei'], '123'],
 	[['1000', 'wei'], '1000'],
 	[['1', 'kwei'], '0.001'],
 	[['1', 'mwei'], '0.000001'],
@@ -248,6 +256,8 @@ export const toWeiValidData: [[Numbers, EtherUnits], string][] = [
 
 export const fromWeiInvalidData: [[any, any], string][] = [
 	[['123.34', 'kwei'], 'value "123.34" at "/0" must pass "int" validation'],
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[[null, 'kwei'], 'value at "/0" must pass "int" validation'],
 	[[undefined, 'kwei'], 'value at "/0" must pass "int" validation'],
 	[[{}, 'kwei'], 'value "[object Object]" at "/0" must pass "int" validation'],
@@ -256,6 +266,8 @@ export const fromWeiInvalidData: [[any, any], string][] = [
 ];
 
 export const toWeiInvalidData: [[any, any], string][] = [
+	// Using "null" value intentionally for validation
+	// eslint-disable-next-line no-null/no-null
 	[[null, 'kwei'], 'value at "/0" must pass "number" validation'],
 	[[undefined, 'kwei'], 'value at "/0" must pass "number" validation'],
 	[[{}, 'kwei'], 'value "[object Object]" at "/0" must pass "number" validation'],
@@ -266,4 +278,20 @@ export const toCheckSumValidData: [string, string][] = [
 	['0x0089d53f703f7e0843953d48133f74ce247184c2', '0x0089d53F703f7E0843953D48133f74cE247184c2'],
 	['0x5fbc2b6c19ee3dd5f9af96ff337ddc89e30ceaef', '0x5FBc2b6C19EE3DD5f9Af96ff337DDC89e30ceAef'],
 	['0xa54D3c09E34aC96807c1CC397404bF2B98DC4eFb', '0xa54d3c09E34aC96807c1CC397404bF2B98DC4eFb'],
+];
+
+export const bytesToBufferInvalidData: [any, string][] = bytesToHexInvalidData;
+
+export const bytesToBufferValidData: [Bytes, Buffer][] = [
+	[new Uint8Array([72]), Buffer.from('48', 'hex')],
+	[new Uint8Array([72, 12]), Buffer.from('480c', 'hex')],
+	['0x9c12', Buffer.from('9c12', 'hex')],
+	['0X12c6', Buffer.from('12c6', 'hex')],
+	['0X1', Buffer.from('01', 'hex')],
+	['0x1', Buffer.from('01', 'hex')],
+	['0x0', Buffer.from('00', 'hex')],
+	['0X0', Buffer.from('00', 'hex')],
+	['0X123', Buffer.from('0123', 'hex')],
+	['0x1234', Buffer.from('1234', 'hex')],
+	[Buffer.from('0c12', 'hex'), Buffer.from('0c12', 'hex')],
 ];

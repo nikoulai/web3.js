@@ -17,6 +17,7 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 
 /* eslint-disable import/namespace */
 
+// eslint-disable-next-line import/no-named-as-default
 import Web3Eth from '../../src/index';
 import * as rpcMethods from '../../src/rpc_methods';
 import * as rpcMethodWrappers from '../../src/rpc_method_wrappers';
@@ -48,10 +49,15 @@ import {
 	sendSignedTransactionValidData,
 	signValidData,
 	submitWorkValidData,
+	tx,
+	txReceipt,
 } from '../fixtures/web3_eth_methods_with_parameters';
 
 jest.mock('../../src/rpc_methods');
 jest.mock('../../src/rpc_method_wrappers');
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+jest.spyOn(rpcMethodWrappers, 'getTransaction').mockResolvedValue(tx);
+jest.spyOn(rpcMethodWrappers, 'getTransactionReceipt').mockResolvedValue(txReceipt);
 
 describe('web3_eth_methods_with_parameters', () => {
 	let web3Eth: Web3Eth;

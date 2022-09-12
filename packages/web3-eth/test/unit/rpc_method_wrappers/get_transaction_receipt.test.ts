@@ -15,13 +15,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 import { Web3Context } from 'web3-core';
-import { DEFAULT_RETURN_FORMAT, FMT_BYTES, FMT_NUMBER, format } from 'web3-common';
+import { DEFAULT_RETURN_FORMAT, FMT_BYTES, FMT_NUMBER, format } from 'web3-utils';
 
 import { getTransactionReceipt as rpcMethodsGetTransactionReceipt } from '../../../src/rpc_methods';
 import { Web3EthExecutionAPI } from '../../../src/web3_eth_execution_api';
 import { getTransactionReceipt } from '../../../src/rpc_method_wrappers';
 import { mockRpcResponse, testData } from './fixtures/get_transaction_receipt';
-import { receiptInfoSchema } from '../../../src/schemas';
+import { transactionReceiptSchema } from '../../../src/schemas';
 
 jest.mock('../../../src/rpc_methods');
 
@@ -55,7 +55,7 @@ describe('getTransactionReceipt', () => {
 		async (_, inputParameters) => {
 			const expectedReturnFormat = { number: FMT_NUMBER.STR, bytes: FMT_BYTES.BUFFER };
 			const expectedFormattedResult = format(
-				receiptInfoSchema,
+				transactionReceiptSchema,
 				mockRpcResponse,
 				expectedReturnFormat,
 			);

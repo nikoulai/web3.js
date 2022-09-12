@@ -15,18 +15,19 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { TransactionWithSender, TransactionCall } from 'web3-common';
 import { Web3RequestManager } from 'web3-core';
 import {
 	Address,
 	BlockNumberOrTag,
-	Uint256,
-	HexString32Bytes,
-	HexStringBytes,
-	Uint,
 	Filter,
+	HexString32Bytes,
 	HexString8Bytes,
-} from 'web3-utils';
+	HexStringBytes,
+	TransactionCallAPI,
+	TransactionWithSenderAPI,
+	Uint,
+	Uint256,
+} from 'web3-types';
 import { validator } from 'web3-validator';
 import { Web3EthExecutionAPI } from './web3_eth_execution_api';
 
@@ -206,7 +207,7 @@ export async function sign(
 // : validateTransactionWithSender(transaction, true) with true being a isPartial flag
 export async function signTransaction(
 	requestManager: Web3RequestManager,
-	transaction: TransactionWithSender | Partial<TransactionWithSender>,
+	transaction: TransactionWithSenderAPI | Partial<TransactionWithSenderAPI>,
 ) {
 	return requestManager.send({
 		method: 'eth_signTransaction',
@@ -220,7 +221,7 @@ export async function signTransaction(
 // : validateTransactionWithSender(transaction, true) with true being a isPartial flag
 export async function sendTransaction(
 	requestManager: Web3RequestManager,
-	transaction: TransactionWithSender | Partial<TransactionWithSender>,
+	transaction: TransactionWithSenderAPI | Partial<TransactionWithSenderAPI>,
 ) {
 	return requestManager.send({
 		method: 'eth_sendTransaction',
@@ -243,7 +244,7 @@ export async function sendRawTransaction(
 // TODO - validate transaction
 export async function call(
 	requestManager: Web3RequestManager,
-	transaction: TransactionCall,
+	transaction: TransactionCallAPI,
 	blockNumber: BlockNumberOrTag,
 ) {
 	// validateTransactionCall(transaction);
@@ -258,7 +259,7 @@ export async function call(
 // TODO Not sure how to best validate Partial<TransactionWithSender>
 export async function estimateGas(
 	requestManager: Web3RequestManager,
-	transaction: Partial<TransactionWithSender>,
+	transaction: Partial<TransactionWithSenderAPI>,
 	blockNumber: BlockNumberOrTag,
 ) {
 	validator.validate(['blockNumberOrTag'], [blockNumber]);
@@ -542,17 +543,17 @@ export async function getChainId(requestManager: Web3RequestManager<Web3EthExecu
 export async function getProof(
 	requestManager: Web3RequestManager<Web3EthExecutionAPI>,
 	address: Address,
-	storageKey: HexString32Bytes,
+	storageKeys: HexString32Bytes[],
 	blockNumber: BlockNumberOrTag,
 ) {
 	validator.validate(
-		['address', 'bytes32', 'blockNumberOrTag'],
-		[address, storageKey, blockNumber],
+		['address', 'bytes32[]', 'blockNumberOrTag'],
+		[address, storageKeys, blockNumber],
 	);
 
 	return requestManager.send({
 		method: 'eth_getProof',
-		params: [address, storageKey, blockNumber],
+		params: [address, storageKeys, blockNumber],
 	});
 }
 

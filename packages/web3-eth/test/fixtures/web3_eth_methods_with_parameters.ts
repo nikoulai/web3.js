@@ -15,7 +15,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { DataFormat, DEFAULT_RETURN_FORMAT, FMT_NUMBER, TransactionWithSender } from 'web3-common';
+import { DataFormat, DEFAULT_RETURN_FORMAT, FMT_NUMBER } from 'web3-utils';
 import {
 	Address,
 	BlockNumberOrTag,
@@ -26,7 +26,9 @@ import {
 	HexStringBytes,
 	Uint,
 	Uint256,
-} from 'web3-utils';
+	TransactionWithSenderAPI,
+	TransactionReceipt,
+} from 'web3-types';
 import { transactionWithSender } from './rpc_methods_wrappers';
 
 /**
@@ -1078,11 +1080,15 @@ export const getTransactionCountValidData: [
  */
 export const estimateGasValidData: [
 	[
-		Partial<TransactionWithSender>,
+		Partial<TransactionWithSenderAPI>,
 		HexString32Bytes | BlockNumberOrTag | undefined,
 		DataFormat | undefined,
 	],
-	[Partial<TransactionWithSender>, HexString32Bytes | BlockNumberOrTag, DataFormat | undefined],
+	[
+		Partial<TransactionWithSenderAPI>,
+		HexString32Bytes | BlockNumberOrTag,
+		DataFormat | undefined,
+	],
 ][] = [
 	// All possible undefined values
 	[
@@ -1454,6 +1460,8 @@ export const getPastLogsValidData: [Filter, Filter][] = [
 			address: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
 			topics: [
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
+				// Using "null" value intentionally for validation
+				// eslint-disable-next-line no-null/no-null
 				null,
 				[
 					'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -1467,6 +1475,8 @@ export const getPastLogsValidData: [Filter, Filter][] = [
 			address: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
 			topics: [
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
+				// Using "null" value intentionally for validation
+				// eslint-disable-next-line no-null/no-null
 				null,
 				[
 					'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -1527,20 +1537,20 @@ export const submitWorkValidData: [[HexString8Bytes, HexString32Bytes, HexString
  * - array of passed RPC parameters (excluding Web3Context) - This is to account for any defaults set by the method
  */
 export const getProofValidData: [
-	[Address, HexString32Bytes, BlockNumberOrTag | undefined, DataFormat | undefined],
-	[Address, HexString32Bytes, BlockNumberOrTag, DataFormat | undefined],
+	[Address, HexString32Bytes[], BlockNumberOrTag | undefined, DataFormat | undefined],
+	[Address, HexString32Bytes[], BlockNumberOrTag, DataFormat | undefined],
 ][] = [
 	// All possible undefined values
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			undefined,
 			undefined,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1549,13 +1559,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			undefined,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1563,13 +1573,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			undefined,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1577,13 +1587,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			undefined,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1591,13 +1601,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			undefined,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1606,13 +1616,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			DEFAULT_RETURN_FORMAT,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1620,13 +1630,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			DEFAULT_RETURN_FORMAT,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1634,13 +1644,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			DEFAULT_RETURN_FORMAT,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1648,13 +1658,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			DEFAULT_RETURN_FORMAT,
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			DEFAULT_RETURN_FORMAT,
 		],
@@ -1663,13 +1673,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
@@ -1677,13 +1687,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
@@ -1691,13 +1701,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
@@ -1705,13 +1715,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.STR },
 		],
@@ -1720,13 +1730,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
@@ -1734,13 +1744,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
@@ -1748,13 +1758,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
@@ -1762,13 +1772,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.NUMBER },
 		],
@@ -1777,13 +1787,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			'0x1',
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
@@ -1791,13 +1801,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.EARLIEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
@@ -1805,13 +1815,13 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.LATEST,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
@@ -1819,15 +1829,51 @@ export const getProofValidData: [
 	[
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
 		[
 			'0x1234567890123456789012345678901234567890',
-			'0x295a70b2de5e3953354a6a8344e616ed314d7251',
+			['0x295a70b2de5e3953354a6a8344e616ed314d7251'],
 			BlockTags.PENDING,
 			{ ...DEFAULT_RETURN_FORMAT, number: FMT_NUMBER.BIGINT },
 		],
 	],
 ];
+
+export const tx = {
+	blockHash: '0xb3a667f84f58c90ab87476073e06c5d1186a0f0b0b69aa3033bfe0e4df264350',
+	blockNumber: '123',
+	from: '0x01ada9d3470eb9eb3875d9e7948c674804ca43ae',
+	gas: '21000',
+	gasPrice: '10000',
+	hash: '0x84f44dffc3cd90a1b66ad0219a97680308e5e7a77299fbf1e2ebb572cf02cc2d',
+	input: '0x',
+	nonce: '61',
+	to: '0x0000000000000000000000000000000000000000',
+	transactionIndex: '0',
+	value: '1',
+	type: '0x01',
+	v: '2710',
+	r: '0xbefb00433ef79b2609dc560c28963c2e954370792671f71ab99665b8807b7feb',
+	s: '0x6bebe5e2c9f839d3ce0264dc5c7cc521f902e86705c69f5fddffaa3de5aac6d3',
+};
+
+export const txReceipt: TransactionReceipt = {
+	blockHash: '0xb3a667f84f58c90ab87476073e06c5d1186a0f0b0b69aa3033bfe0e4df264350',
+	blockNumber: BigInt(123),
+	cumulativeGasUsed: BigInt(21000),
+	effectiveGasPrice: BigInt(10000),
+	from: '0x01ada9d3470eb9eb3875d9e7948c674804ca43ae',
+	gasUsed: BigInt(21000),
+	logs: [],
+	logsBloom:
+		'0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+	status: BigInt(1),
+	to: '0x0000000000000000000000000000000000000000',
+	transactionHash: '0x84f44dffc3cd90a1b66ad0219a97680308e5e7a77299fbf1e2ebb572cf02cc2d',
+	transactionIndex: BigInt(0),
+	type: BigInt(0),
+	root: '',
+};

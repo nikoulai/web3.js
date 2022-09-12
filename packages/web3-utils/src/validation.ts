@@ -15,6 +15,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { InvalidBlockError } from 'web3-errors';
 import {
 	checkAddressCheckSum as checkAddressCheckSumValidator,
 	isAddress as isAddressValidator,
@@ -26,9 +27,9 @@ import {
 	isTopic as isTopicValidator,
 	isTopicInBloom as isTopicInBloomValidator,
 	isUserEthereumAddressInBloom as isUserEthereumAddressInBloomValidator,
+	isNullish as isNullishValidator,
 } from 'web3-validator';
-import { InvalidBlockError } from './errors';
-import { Numbers } from './types';
+import { Numbers } from 'web3-types';
 
 /**
  * @deprecated Will be removed in next release. Please use `web3-validator` package instead.
@@ -104,7 +105,7 @@ export const isTopicInBloom = isTopicInBloomValidator;
 
 /**
  * Compares between block A and block B
- * Returns -1 if a < b, returns 1 if a > b and returns 0 if a == b
+ * Returns -1 if a \< b, returns 1 if a \> b and returns 0 if a == b
  */
 export const compareBlockNumbers = (blockA: Numbers, blockB: Numbers) => {
 	// string validation
@@ -171,3 +172,5 @@ export const compareBlockNumbers = (blockA: Numbers, blockB: Numbers) => {
 	}
 	return 1;
 };
+
+export const isNullish = isNullishValidator;

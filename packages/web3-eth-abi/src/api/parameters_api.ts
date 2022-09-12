@@ -15,9 +15,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { AbiError } from 'web3-common';
+import { AbiError } from 'web3-errors';
 import { ParamType } from '@ethersproject/abi';
-import { HexString } from 'web3-utils';
+import { HexString } from 'web3-types';
 import ethersAbiCoder from '../ethers_abi_coder';
 import { AbiInput } from '../types';
 import { formatParam, isAbiFragment, mapTypes, modifyParams } from '../utils';
@@ -29,17 +29,21 @@ const formatDecodedObject = (
 	abi: { [key: string]: unknown },
 	input: { [key: string]: unknown },
 ): { [key: string]: unknown } => {
+	let index = 0;
 	const res: { [key: string]: unknown } = {};
 	for (const j of Object.keys(abi)) {
 		if (typeof abi[j] === 'string') {
 			res[j] = input[j];
+			res[index] = input[j];
 		}
 		if (typeof abi[j] === 'object') {
 			res[j] = formatDecodedObject(
 				abi[j] as { [key: string]: unknown },
 				input[j] as { [key: string]: unknown },
 			);
+			res[index] = res[j];
 		}
+		index += 1;
 	}
 
 	return res;
@@ -96,7 +100,7 @@ export const decodeParametersWith = (
 	abis: AbiInput[],
 	bytes: HexString,
 	loose: boolean,
-): unknown[] => {
+): { [key: string]: unknown; __length__: number } => {
 	try {
 		if (abis.length > 0 && (!bytes || bytes === '0x' || bytes === '0X')) {
 			throw new AbiError(
@@ -107,13 +111,14 @@ export const decodeParametersWith = (
 					'or querying a node which is not fully synced.',
 			);
 		}
-
 		const res = ethersAbiCoder.decode(
 			mapTypes(abis).map(p => ParamType.from(p)),
 			`0x${bytes.replace(/0x/i, '')}`,
 			loose,
 		);
-		const returnList: unknown[] = [];
+		const returnValue: { [key: string]: unknown; __length__: number } = {
+			__length__: 0,
+		};
 		for (const [i, abi] of abis.entries()) {
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			let decodedValue = res[i];
@@ -124,9 +129,11 @@ export const decodeParametersWith = (
 			// only convert `0x` to null if it's not string value
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			decodedValue =
+				// Using "null" value to match with legacy behavior
+				// eslint-disable-next-line no-null/no-null
 				decodedValue === '0x' && !isStringObject && !isStringType ? null : decodedValue;
 
-			if (!!abi && typeof abi === 'object' && !abi.name && !Array.isArray(abi)) {
+			if (!!abi && typeof abi === 'object' && !Array.isArray(abi)) {
 				// the length of the abi object will always be 1
 				for (const j of Object.keys(abi)) {
 					const abiObject: { [key: string]: unknown } = abi; // abi is readonly have to create a new const
@@ -139,9 +146,14 @@ export const decodeParametersWith = (
 					}
 				}
 			}
-			returnList.push(decodedValue);
+			if (!!abi && typeof abi === 'object' && abi?.name) {
+				returnValue[(abi as { name: string })?.name] = decodedValue;
+			}
+			returnValue[i] = decodedValue;
+			returnValue.__length__ += 1;
 		}
-		return returnList;
+
+		return returnValue;
 	} catch (err) {
 		throw new AbiError(`Parameter decoding error: ${(err as Error).message}`);
 	}
@@ -150,10 +162,13 @@ export const decodeParametersWith = (
 /**
  * Should be used to decode list of params
  */
-export const decodeParameters = (abi: AbiInput[], bytes: HexString) =>
-	decodeParametersWith(abi, bytes, false);
+export const decodeParameters = (
+	abi: AbiInput[],
+	bytes: HexString,
+): { [key: string]: unknown; __length__: number } => decodeParametersWith(abi, bytes, false);
 
 /**
  * Should be used to decode bytes to plain param
  */
-export const decodeParameter = (abi: AbiInput, bytes: HexString) => decodeParameters([abi], bytes);
+export const decodeParameter = (abi: AbiInput, bytes: HexString): unknown =>
+	decodeParameters([abi], bytes)['0'];

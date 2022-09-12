@@ -15,58 +15,71 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { inputBlockNumberFormatter, LogsInput, outputLogFormatter } from 'web3-common';
+import { DataFormat, DEFAULT_RETURN_FORMAT, format, isNullish } from 'web3-utils';
+
+import { LogsInput, BlockNumberOrTag, Filter, HexString, Topic, Numbers } from 'web3-types';
+
 import {
 	AbiConstructorFragment,
 	AbiEventFragment,
 	AbiFunctionFragment,
 	decodeLog,
 	decodeParameters,
+	encodeEventSignature,
 	encodeFunctionSignature,
 	encodeParameter,
 	encodeParameters,
 	isAbiConstructorFragment,
+	jsonInterfaceMethodToString,
 } from 'web3-eth-abi';
-import { Filter, HexString, Uint } from 'web3-utils';
+
+import { blockSchema, logSchema } from 'web3-eth/dist/schemas';
+
 import { Web3ContractError } from './errors';
-import { ContractOptions } from './types';
+// eslint-disable-next-line import/no-cycle
+import { ContractAbiWithSignature, ContractOptions, EventLog } from './types';
 
 export const encodeEventABI = (
 	{ address }: ContractOptions,
 	event: AbiEventFragment & { signature: string },
 	options?: {
-		fromBlock?: Uint;
-		toBlock?: Uint;
+		fromBlock?: BlockNumberOrTag;
+		toBlock?: BlockNumberOrTag;
 		filter?: Filter;
-		topics?: HexString | HexString[];
+		// Using "null" type intentionally to match specifications
+		// eslint-disable-next-line @typescript-eslint/ban-types
+		topics?: (null | Topic | Topic[])[];
 	},
+	returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
 ) => {
 	const opts: {
 		filter: Filter;
-		fromBlock?: string;
-		toBlock?: string;
-		topics?: HexString[];
+		fromBlock?: Numbers;
+		toBlock?: Numbers;
+		topics?: (Topic | Topic[])[];
 		address?: HexString;
 	} = {
 		filter: options?.filter ?? {},
 	};
 
-	if (options?.fromBlock) {
-		opts.fromBlock = inputBlockNumberFormatter(options.fromBlock);
+	if (!isNullish(options?.fromBlock)) {
+		opts.fromBlock = format(blockSchema.properties.number, options?.fromBlock, returnFormat);
 	}
 
-	if (options?.toBlock) {
-		opts.toBlock = inputBlockNumberFormatter(options.toBlock);
+	if (!isNullish(options?.toBlock)) {
+		opts.toBlock = format(blockSchema.properties.number, options?.toBlock, returnFormat);
 	}
 
 	if (options?.topics && Array.isArray(options.topics)) {
-		opts.topics = [...options.topics];
+		opts.topics = [...options.topics].filter(Boolean) as Topic[];
 	} else {
 		opts.topics = [];
 
 		// add event signature
 		if (event && !event.anonymous && event.name !== 'ALLEVENTS') {
-			opts.topics.push(event.signature);
+			opts.topics.push(
+				event.signature ?? encodeEventSignature(jsonInterfaceMethodToString(event)),
+			);
 		}
 
 		// add event topics (indexed arguments)
@@ -105,23 +118,33 @@ export const encodeEventABI = (
 export const decodeEventABI = (
 	event: AbiEventFragment & { signature: string },
 	data: LogsInput,
-) => {
+	jsonInterface: ContractAbiWithSignature,
+	returnFormat: DataFormat = DEFAULT_RETURN_FORMAT,
+): EventLog => {
 	let modifiedEvent = { ...event };
-	const result = outputLogFormatter(data);
+
+	const result = format(logSchema, data, returnFormat);
 
 	// if allEvents get the right event
-	if (event.name === 'ALLEVENTS' && event.signature === (data.topics ?? [])[0]) {
-		modifiedEvent.anonymous = true;
+	if (modifiedEvent.name === 'ALLEVENTS') {
+		const matchedEvent = jsonInterface.find(j => j.signature === data.topics[0]);
+		if (matchedEvent) {
+			modifiedEvent = matchedEvent as AbiEventFragment & { signature: string };
+		} else {
+			modifiedEvent = { anonymous: true } as unknown as AbiEventFragment & {
+				signature: string;
+			};
+		}
 	}
 
 	// create empty inputs if none are present (e.g. anonymous events on allEvents)
-	modifiedEvent.inputs = event.inputs ?? [];
+	modifiedEvent.inputs = modifiedEvent.inputs ?? event.inputs ?? [];
 
 	// Handle case where an event signature shadows the current ABI with non-identical
 	// arg indexing. If # of topics doesn't match, event is anon.
-	if (!event.anonymous) {
+	if (!modifiedEvent.anonymous) {
 		let indexedInputs = 0;
-		(event.inputs ?? []).forEach(input => {
+		(modifiedEvent.inputs ?? []).forEach(input => {
 			if (input.indexed) {
 				indexedInputs += 1;
 			}
@@ -140,9 +163,10 @@ export const decodeEventABI = (
 	const argTopics = modifiedEvent.anonymous ? data.topics : (data.topics ?? []).slice(1);
 	return {
 		...result,
-		returnValue: decodeLog([...event.inputs], data.data, argTopics),
-		event: event.name,
-		signature: event.anonymous || !data.topics[0] ? null : data.topics[0],
+		returnValues: decodeLog([...(modifiedEvent.inputs ?? [])], data.data, argTopics),
+		event: modifiedEvent.name,
+		signature: modifiedEvent.anonymous || !data.topics[0] ? undefined : data.topics[0],
+
 		raw: {
 			data: data.data,
 			topics: data.topics,
@@ -163,10 +187,10 @@ export const encodeMethodABI = (
 		);
 	}
 
-	const params =
-		(Array.isArray(abi.inputs) ? abi.inputs : []).map(i =>
-			encodeParameters([i], args).replace('0x', ''),
-		)[0] ?? '';
+	const params = encodeParameters(Array.isArray(abi.inputs) ? abi.inputs : [], args).replace(
+		'0x',
+		'',
+	);
 
 	if (isAbiConstructorFragment(abi)) {
 		if (!deployData)
@@ -191,13 +215,19 @@ export const decodeMethodReturn = (abi: AbiFunctionFragment, returnValues?: HexS
 	}
 
 	if (!returnValues) {
+		// Using "null" value intentionally to match legacy behavior
+		// eslint-disable-next-line no-null/no-null
 		return null;
 	}
 
 	const value = returnValues.length >= 2 ? returnValues.slice(2) : returnValues;
+	if (!abi.outputs) {
+		// eslint-disable-next-line no-null/no-null
+		return null;
+	}
 	const result = decodeParameters([...abi.outputs], value);
 
-	if (result.length === 1) {
+	if (result.__length__ === 1) {
 		return result[0];
 	}
 

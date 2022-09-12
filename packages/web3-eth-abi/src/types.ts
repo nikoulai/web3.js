@@ -15,7 +15,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Address, Bytes, FixedSizeArray, Numbers } from 'web3-utils';
+import { Address, Bytes, FixedSizeArray, Numbers } from 'web3-types';
 import { ConvertToNumber } from './number_map_type';
 
 export interface AbiStruct {
@@ -53,27 +53,27 @@ export type AbiBaseFragment = {
 export type AbiConstructorFragment = AbiBaseFragment & {
 	readonly type: string | 'constructor';
 	readonly stateMutability: string | 'nonpayable' | 'payable';
-	readonly inputs: ReadonlyArray<AbiParameter>;
+	readonly inputs?: ReadonlyArray<AbiParameter>;
 };
 
 // https://docs.soliditylang.org/en/latest/abi-spec.html#json
 export type AbiFunctionFragment = AbiBaseFragment & {
 	readonly name: string;
 	readonly type: string | 'function';
-	readonly stateMutability: string | 'nonpayable' | 'payable' | 'pure' | 'view';
-	readonly inputs: ReadonlyArray<AbiParameter>;
-	readonly outputs: ReadonlyArray<AbiParameter>;
+	readonly stateMutability?: string | 'nonpayable' | 'payable' | 'pure' | 'view';
+	readonly inputs?: ReadonlyArray<AbiParameter>;
+	readonly outputs?: ReadonlyArray<AbiParameter>;
 
 	readonly constant?: boolean; // stateMutability == 'pure' or stateMutability == 'view'
 	readonly payable?: boolean; // stateMutability == 'payable'
 };
 
 export type AbiFallbackFragment = AbiBaseFragment & {
-	readonly name?: never;
+	readonly name: never;
 	readonly type: string | 'fallback';
 	readonly stateMutability: string | 'nonpayable' | 'payable' | 'pure' | 'view';
-	readonly inputs?: never;
-	readonly outputs?: never;
+	readonly inputs: never;
+	readonly outputs: never;
 
 	// legacy properties
 	readonly constant?: boolean; // stateMutability == 'pure' or stateMutability == 'view'
@@ -84,7 +84,7 @@ export type AbiFallbackFragment = AbiBaseFragment & {
 export type AbiEventFragment = AbiBaseFragment & {
 	readonly name: string;
 	readonly type: string | 'event';
-	readonly inputs: ReadonlyArray<AbiParameter>;
+	readonly inputs?: ReadonlyArray<AbiParameter>;
 	readonly anonymous?: boolean;
 };
 
@@ -177,35 +177,49 @@ export type MatchPrimitiveType<
 	| PrimitiveTupleType<Type, Components>
 	| never;
 
-export type ContractMethodOutputParameters<Params extends Array<unknown>> = Params extends []
-	? []
-	: Params extends [infer H, ...infer R]
-	? H extends AbiParameter
-		? // TODO: Find a way to set name for tuple item
-		  [MatchPrimitiveType<H['type'], H['components']>, ...ContractMethodOutputParameters<R>]
-		: ContractMethodOutputParameters<R>
-	: Params;
+export type ContractMethodOutputParameters<Params extends ReadonlyArray<unknown> | undefined> =
+	Params extends readonly []
+		? []
+		: Params extends readonly [infer H, ...infer R]
+		? H extends AbiParameter
+			? // TODO: Find a way to set name for tuple item
+			  [MatchPrimitiveType<H['type'], H['components']>, ...ContractMethodOutputParameters<R>]
+			: ContractMethodOutputParameters<R>
+		: Params extends undefined | unknown
+		? []
+		: Params;
 
-export type ContractMethodInputParameters<Params extends Array<unknown>> = Params extends []
-	? []
-	: Params extends [infer H, ...infer R]
-	? H extends AbiParameter
-		? // TODO: Find a way to set name for tuple item
-		  [MatchPrimitiveType<H['type'], H['components']>, ...ContractMethodInputParameters<R>]
-		: ContractMethodInputParameters<R>
-	: Params;
+export type ContractMethodInputParameters<Params extends ReadonlyArray<unknown> | undefined> =
+	Params extends readonly []
+		? []
+		: Params extends readonly [infer H, ...infer R]
+		? H extends AbiParameter
+			? // TODO: Find a way to set name for tuple item
+			  [MatchPrimitiveType<H['type'], H['components']>, ...ContractMethodInputParameters<R>]
+			: ContractMethodInputParameters<R>
+		: Params extends undefined | unknown
+		? []
+		: Params;
 
 export type ContractConstructor<Abis extends ContractAbi> = {
-	[Abi in FilterAbis<Abis, AbiConstructorFragment> as 'constructor']: {
+	[Abi in FilterAbis<Abis, AbiConstructorFragment & { type: 'constructor' }> as 'constructor']: {
 		readonly Abi: Abi;
-		readonly Inputs: ContractMethodInputParameters<[...Abi['inputs']]>;
+		readonly Inputs: ContractMethodInputParameters<Abi['inputs']>;
 	};
+}['constructor'];
+
+export type ContractConstructorArgs<Abis extends ContractAbi> = {
+	[Abi in FilterAbis<
+		Abis,
+		AbiConstructorFragment & { type: 'constructor' }
+	> as 'constructor']: ContractMethodInputParameters<Abi['inputs']>;
 }['constructor'];
 
 export type ContractMethod<Abi extends AbiFunctionFragment> = {
 	readonly Abi: Abi;
-	readonly Inputs: ContractMethodInputParameters<[...Abi['inputs']]>;
-	readonly Outputs: ContractMethodOutputParameters<[...Abi['outputs']]>;
+
+	readonly Inputs: ContractMethodInputParameters<Abi['inputs']>;
+	readonly Outputs: ContractMethodOutputParameters<Abi['outputs']>;
 };
 
 export type ContractMethods<Abis extends ContractAbi> = {
@@ -217,7 +231,7 @@ export type ContractMethods<Abis extends ContractAbi> = {
 
 export type ContractEvent<Abi extends AbiEventFragment> = {
 	readonly Abi: Abi;
-	readonly Inputs: ContractMethodInputParameters<[...Abi['inputs']]>;
+	readonly Inputs: ContractMethodInputParameters<Abi['inputs']>;
 };
 
 export type ContractEvents<Abis extends ContractAbi> = {

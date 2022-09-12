@@ -16,7 +16,7 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 import * as fs from 'fs';
-import { InvalidClientError } from 'web3-common';
+import { InvalidClientError } from 'web3-errors';
 import IpcProvider from '../../src/index';
 
 jest.mock('net');
@@ -76,6 +76,15 @@ describe('IpcProvider', () => {
 
 			expect(provider['_socket'].connect).toHaveBeenCalledTimes(1);
 			expect(provider['_socket'].connect).toHaveBeenCalledWith({ path: socketPath });
+		});
+		it('check wait params', () => {
+			const provider = new IpcProvider(socketPath);
+			expect(provider.waitTimeOut).toBe(5000);
+			expect(provider.waitMaxNumberOfAttempts).toBe(10);
+			provider.waitTimeOut = 300;
+			provider.waitMaxNumberOfAttempts = 20;
+			expect(provider.waitTimeOut).toBe(300);
+			expect(provider.waitMaxNumberOfAttempts).toBe(20);
 		});
 	});
 });

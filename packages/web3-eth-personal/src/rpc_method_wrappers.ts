@@ -15,9 +15,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { DEFAULT_RETURN_FORMAT } from 'web3-common';
-import { formatTransaction, Transaction } from 'web3-eth';
-import { Address, HexString, isHexStrict, toChecksumAddress, utf8ToHex } from 'web3-utils';
+import { ETH_DATA_FORMAT, isHexStrict, toChecksumAddress, utf8ToHex } from 'web3-utils';
+import { formatTransaction } from 'web3-eth';
+import { Address, HexString, Transaction } from 'web3-types';
 import { validator } from 'web3-validator';
 import {
 	getAccounts as rpcGetAccounts,
@@ -78,7 +78,7 @@ export const sendTransaction = async (
 	tx: Transaction,
 	passphrase: string,
 ) => {
-	const formattedTx = formatTransaction(tx, DEFAULT_RETURN_FORMAT);
+	const formattedTx = formatTransaction(tx, ETH_DATA_FORMAT);
 
 	return rpcSendTransaction(requestManager, formattedTx, passphrase);
 };
@@ -88,7 +88,7 @@ export const signTransaction = async (
 	tx: Transaction,
 	passphrase: string,
 ) => {
-	const formattedTx = formatTransaction(tx, DEFAULT_RETURN_FORMAT);
+	const formattedTx = formatTransaction(tx, ETH_DATA_FORMAT);
 
 	return rpcSignTransaction(requestManager, formattedTx, passphrase);
 };
@@ -99,7 +99,7 @@ export const sign = async (
 	address: Address,
 	passphrase: string,
 ) => {
-	validator.validate(['bytes', 'address', 'string'], [data, address, passphrase]);
+	validator.validate(['string', 'address', 'string'], [data, address, passphrase]);
 
 	const dataToSign = isHexStrict(data) ? data : utf8ToHex(data);
 
@@ -111,7 +111,7 @@ export const ecRecover = async (
 	signedData: HexString,
 	signature: string,
 ) => {
-	validator.validate(['bytes', 'string'], [signedData, signature]);
+	validator.validate(['string', 'string'], [signedData, signature]);
 
 	const signedDataString = isHexStrict(signedData) ? signedData : utf8ToHex(signedData);
 

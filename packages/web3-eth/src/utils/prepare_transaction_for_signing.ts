@@ -17,24 +17,23 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 
 import Common from '@ethereumjs/common';
 import { TransactionFactory, TxOptions } from '@ethereumjs/tx';
-import { EthExecutionAPI, FMT_BYTES, FMT_NUMBER, FormatType } from 'web3-common';
-import { Web3Context } from 'web3-core';
-import { HexString, toNumber } from 'web3-utils';
 import {
+	EthExecutionAPI,
+	HexString,
 	PopulatedUnsignedEip1559Transaction,
 	PopulatedUnsignedEip2930Transaction,
 	PopulatedUnsignedTransaction,
 	Transaction,
-} from '../types';
+} from 'web3-types';
+import { Web3Context } from 'web3-core';
+import { FormatType, ETH_DATA_FORMAT, toNumber } from 'web3-utils';
+import { isNullish } from 'web3-validator';
 import { validateTransactionForSigning } from '../validation';
 import { formatTransaction } from './format_transaction';
 import { transactionBuilder } from './transaction_builder';
 
 const getEthereumjsTxDataFromTransaction = (
-	transaction: FormatType<
-		PopulatedUnsignedTransaction,
-		{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-	>,
+	transaction: FormatType<PopulatedUnsignedTransaction, typeof ETH_DATA_FORMAT>,
 ) => ({
 	nonce: transaction.nonce,
 	gasPrice: transaction.gasPrice,
@@ -45,35 +44,23 @@ const getEthereumjsTxDataFromTransaction = (
 	type: transaction.type,
 	chainId: transaction.chainId,
 	accessList: (
-		transaction as FormatType<
-			PopulatedUnsignedEip2930Transaction,
-			{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-		>
+		transaction as FormatType<PopulatedUnsignedEip2930Transaction, typeof ETH_DATA_FORMAT>
 	).accessList,
 	maxPriorityFeePerGas: (
-		transaction as FormatType<
-			PopulatedUnsignedEip1559Transaction,
-			{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-		>
+		transaction as FormatType<PopulatedUnsignedEip1559Transaction, typeof ETH_DATA_FORMAT>
 	).maxPriorityFeePerGas,
 	maxFeePerGas: (
-		transaction as FormatType<
-			PopulatedUnsignedEip1559Transaction,
-			{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-		>
+		transaction as FormatType<PopulatedUnsignedEip1559Transaction, typeof ETH_DATA_FORMAT>
 	).maxFeePerGas,
 });
 
 const getEthereumjsTransactionOptions = (
-	transaction: FormatType<
-		PopulatedUnsignedTransaction,
-		{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-	>,
+	transaction: FormatType<PopulatedUnsignedTransaction, typeof ETH_DATA_FORMAT>,
 	web3Context: Web3Context<EthExecutionAPI>,
 ) => {
 	const hasTransactionSigningOptions =
-		(transaction.chain !== undefined && transaction.hardfork !== undefined) ||
-		transaction.common !== undefined;
+		(!isNullish(transaction.chain) && !isNullish(transaction.hardfork)) ||
+		!isNullish(transaction.common);
 
 	let common;
 	if (!hasTransactionSigningOptions) {
@@ -81,10 +68,9 @@ const getEthereumjsTransactionOptions = (
 			{
 				name: 'custom-network',
 				chainId: toNumber(transaction.chainId) as number,
-				networkId:
-					transaction.networkId !== undefined
-						? (toNumber(transaction.networkId) as number)
-						: undefined,
+				networkId: !isNullish(transaction.networkId)
+					? (toNumber(transaction.networkId) as number)
+					: undefined,
 				defaultHardfork: transaction.hardfork ?? web3Context.defaultHardfork,
 			},
 			{
@@ -118,19 +104,13 @@ export const prepareTransactionForSigning = async (
 		privateKey,
 	})) as unknown as PopulatedUnsignedTransaction;
 
-	const formattedTransaction = formatTransaction(populatedTransaction, {
-		number: FMT_NUMBER.HEX,
-		bytes: FMT_BYTES.HEX,
-	}) as unknown as FormatType<
-		PopulatedUnsignedTransaction,
-		{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-	>;
+	const formattedTransaction = formatTransaction(
+		populatedTransaction,
+		ETH_DATA_FORMAT,
+	) as unknown as FormatType<PopulatedUnsignedTransaction, typeof ETH_DATA_FORMAT>;
 
 	validateTransactionForSigning(
-		formattedTransaction as unknown as FormatType<
-			Transaction,
-			{ number: FMT_NUMBER.HEX; bytes: FMT_BYTES.HEX }
-		>,
+		formattedTransaction as unknown as FormatType<Transaction, typeof ETH_DATA_FORMAT>,
 	);
 
 	return TransactionFactory.fromTxData(

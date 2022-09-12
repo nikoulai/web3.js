@@ -18,7 +18,7 @@ along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 
 import { when } from 'jest-when';
-import { Web3AccountProvider, Web3BaseWalletAccount } from 'web3-common';
+import { Web3AccountProvider, Web3BaseWalletAccount } from 'web3-types';
 import { Wallet } from '../../src/wallet';
 
 describe('Wallet', () => {
@@ -134,13 +134,12 @@ describe('Wallet', () => {
 			expect(wallet.get('my_address')).toEqual(account);
 		});
 
-		it('should get account for given address only in lower case', () => {
+		it('should get account with index', () => {
 			const account = { address: 'my_Address' } as never;
 
 			wallet.add(account);
 
-			expect(wallet.get('my_address')).toEqual(account);
-			expect(wallet.get('my_Address')).toBeUndefined();
+			expect(wallet[0]).toEqual(account);
 		});
 	});
 
@@ -189,6 +188,40 @@ describe('Wallet', () => {
 
 			expect(result).toBeFalsy();
 			expect(wallet).toHaveLength(1);
+		});
+
+		it('should remove account with the index', () => {
+			const account = { address: 'my_address' } as never;
+			wallet.add(account);
+			expect(wallet).toHaveLength(1);
+
+			delete wallet[0];
+
+			// Deleting objects dees not change the length
+			expect(wallet).toHaveLength(1);
+			expect(wallet[0]).toBeUndefined();
+		});
+
+		it('should remove account with array methods', () => {
+			const account = { address: 'my_address' } as never;
+			wallet.add(account);
+			expect(wallet).toHaveLength(1);
+
+			wallet.splice(0, 1);
+
+			expect(wallet).toHaveLength(0);
+			expect(wallet[0]).toBeUndefined();
+		});
+
+		it('should remove account added with private key with array methods', () => {
+			const privateKey = 'private_key';
+			wallet.add(privateKey);
+			expect(wallet).toHaveLength(1);
+
+			wallet.splice(0, 1);
+
+			expect(wallet).toHaveLength(0);
+			expect(wallet[0]).toBeUndefined();
 		});
 	});
 

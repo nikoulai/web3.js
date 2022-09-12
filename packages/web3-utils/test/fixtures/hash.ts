@@ -15,10 +15,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { TypedObject, TypedObjectAbbreviated } from 'web3-types';
 import { hexToBytes } from '../../src/converters';
-import { TypedObject, TypedObjectAbbreviated } from '../../src/types';
 
-export const sha3Data: [string, string | null][] = [
+export const sha3Data: [string, string | undefined][] = [
 	['test123', '0xf81b517a242b218999ec8eec0ea6e2ddbef2a367a14e93f4a32a39e260f686ad'],
 	[
 		'0x265385c7f4132228a0d54eb1a9e7460b91c0cc68:2382:image',
@@ -28,9 +28,9 @@ export const sha3Data: [string, string | null][] = [
 	['helloworld', '0xfa26db7ca85ead399216e7c6316bc50ed24393c3122b582735e7f3b0f91b93f0'],
 ];
 
-export const sha3ValidData: [string, string | null][] = [
+export const sha3ValidData: [string, string | undefined][] = [
 	...sha3Data,
-	['', null],
+	['', undefined],
 	[
 		'0x265385c7f4132228a0d54eb1a9e7460b91c0cc68',
 		'0xb549c60e309fa734059e547a595c28b5ebada949c16229fbf2192650807694f5',
@@ -43,7 +43,7 @@ export const sha3ValidData: [string, string | null][] = [
 	['0x1234', '0x56570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432'],
 ];
 
-export const compareSha3JSValidData: [string, any | null][] = [
+export const compareSha3JSValidData: [string, any | undefined][] = [
 	// cases that include buffer data
 	['0x80', Buffer.from(hexToBytes('0x80'))],
 	[
@@ -59,14 +59,14 @@ export const sha3InvalidData: [any, string][] = [
 	[undefined, 'Invalid value given "undefined". Error: not a valid string.'],
 ];
 
-export const sha3RawValidData: [string, string | null][] = [
+export const sha3RawValidData: [string, string | undefined][] = [
 	...sha3Data,
 	['', '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470'],
 ];
 
 export const compareSha3JSRawValidData: [string, string][] = [...compareSha3JSValidData];
 
-export const soliditySha3Data: [TypedObject[] | TypedObjectAbbreviated[], string | null][] = [
+export const soliditySha3Data: [TypedObject[] | TypedObjectAbbreviated[], string | undefined][] = [
 	[
 		[{ type: 'string', value: '31323334' }],
 		'0xf15f8da2ad27e486d632dc37d24912f634398918d6f9913a0a0ff84e388be62b',
@@ -146,19 +146,21 @@ export const soliditySha3Data: [TypedObject[] | TypedObjectAbbreviated[], string
 	],
 ];
 
-export const soliditySha3ValidData: [TypedObject[] | TypedObjectAbbreviated[], string | null][] = [
-	...soliditySha3Data,
-	[[{ t: 'string', v: '' }], null],
-];
+export const soliditySha3ValidData: [
+	TypedObject[] | TypedObjectAbbreviated[],
+	string | undefined,
+][] = [...soliditySha3Data, [[{ t: 'string', v: '' }], undefined]];
 
-export const soliditySha3RawValidData: [TypedObject[] | TypedObjectAbbreviated[], string | null][] =
+export const soliditySha3RawValidData: [
+	TypedObject[] | TypedObjectAbbreviated[],
+	string | undefined,
+][] = [
+	...soliditySha3Data,
 	[
-		...soliditySha3Data,
-		[
-			[{ t: 'string', v: '' }],
-			'0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
-		],
-	];
+		[{ t: 'string', v: '' }],
+		'0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
+	],
+];
 
 export const soliditySha3InvalidData: [any, string][] = [
 	[1, 'Invalid value given "1". Error: invalid type, type not supported.'],
@@ -266,4 +268,17 @@ export const encodePackedInvalidData: [any, string][] = [
 		{ type: 'bytes32', value: '0x1' },
 		'Invalid value given "0x1". Error: can not parse as byte data.',
 	],
+];
+
+export const keccak256ValidData: [string | Uint8Array | bigint, string][] = [
+	['my data', '0x8e0c48154711500d6fa119cc31df4dec339091e8b426cf4109a769fe89baad31'],
+	[
+		new Uint8Array(Buffer.from('my data')),
+		'0x8e0c48154711500d6fa119cc31df4dec339091e8b426cf4109a769fe89baad31',
+	],
+	[
+		'0x8e0c48154711500d6fa119cc31df4dec339091e8b426cf4109a769fe89baad31',
+		'0x2d19cd91fbcc44e6412f92c11da7907cdedb1ace04c47447b42a61f1cd63b85a',
+	],
+	[BigInt(3), '0x2a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de'],
 ];

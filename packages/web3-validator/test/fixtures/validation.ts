@@ -15,6 +15,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import { Filter } from 'web3-types';
+
 export const validUintData: any[] = [
 	'0x48',
 	'0x123c',
@@ -24,7 +26,9 @@ export const validUintData: any[] = [
 	BigInt(12),
 ];
 
-export const invalidUintData: any[] = ['-0x48', '-12', -1, true, undefined, null];
+// Using "null" value intentionally for validation
+// eslint-disable-next-line no-null/no-null
+export const invalidUintData: any[] = ['-0x48', '-12', -1, true, undefined, null, ''];
 
 export const validUintDataWithSize: [any, number][] = [
 	['0x48', 8],
@@ -32,10 +36,16 @@ export const validUintDataWithSize: [any, number][] = [
 	['0x0dec0518fa672a70027b04c286582e543ab17319fbdd384fa7bc8f3d5a542c0b', 256],
 	['1', 16],
 	[1, 8],
+	[0, 8],
+	['0x0', 8],
+	['0x1', 8],
 	[BigInt(12), 64],
 ];
 
 export const invalidUintDataWithSize: [any, number][] = [
+	['', 8],
+	[-1, 8],
+	['-0x1233', 8],
 	['0x4812', 8],
 	['0x123ccdef', 16],
 	['0x0dec0518fa672a70027b04c286582e543ab17319fbdd384fa7bc8f3d5a542c0b', 8],
@@ -65,6 +75,8 @@ export const validIntData: any[] = [
 	BigInt(-12),
 ];
 
+// Using "null" value intentionally for validation
+// eslint-disable-next-line no-null/no-null
 export const invalidIntData: any[] = [true, undefined, null];
 
 export const validIntDataWithSize: [any, number][] = [
@@ -131,8 +143,7 @@ export const invalidHexStrictData: any[] = [
 	'0',
 	1,
 	BigInt(12),
-	12n,
-	-255n,
+	BigInt(-255),
 	-42,
 	4.2,
 ];
@@ -144,8 +155,7 @@ export const validHexData: any[] = [
 	'0',
 	1,
 	BigInt(12),
-	12n,
-	-255n,
+	BigInt(-255),
 ];
 
 export const validCheckAddressCheckSumData: any[] = [
@@ -189,7 +199,7 @@ export const compareBlockNumbersValidData: [[any, any], number][] = [
 	[[2, 1], 1],
 	[[BigInt(1), BigInt(1)], 0],
 	[[BigInt(1), BigInt(2)], -1],
-	[[BigInt(2), 1n], 1],
+	[[BigInt(2), BigInt(1)], 1],
 	[[1, BigInt(1)], 0],
 	[[1, BigInt(2)], -1],
 	[[2, BigInt(1)], 1],
@@ -199,7 +209,7 @@ export const compareBlockNumbersValidData: [[any, any], number][] = [
 	[['pending', 'pending'], 0],
 	[['latest', 'latest'], 0],
 	[['earliest', 2], -1],
-	[['earliest', 2n], -1],
+	[['earliest', BigInt(2)], -1],
 	[['earliest', 'pending'], -1],
 	[['genesis', 2], -1],
 	[['genesis', 'latest'], -1],
@@ -208,7 +218,7 @@ export const compareBlockNumbersValidData: [[any, any], number][] = [
 	[[13532346, 13532300], 1],
 	[['pending', 'latest'], 1],
 	[['latest', 0], 1],
-	[['latest', 1n], 1],
+	[['latest', BigInt(1)], 1],
 	[['pending', 0], 1],
 	[['pending', BigInt(1)], 1],
 ];
@@ -293,7 +303,7 @@ export const invalidTopicInBloomData: any[] = [
 	],
 ];
 
-export const validBigIntData: any[] = [90071992547409911n, BigInt(42), BigInt('1337')];
+export const validBigIntData: any[] = [BigInt('90071992547409911'), BigInt(42), BigInt('1337')];
 
 export const invalidBigIntData: any[] = [3, '3', '3n'];
 
@@ -306,10 +316,20 @@ export const validBlockNumberData: any[] = [
 	'0x2C941171bD2A7aEda7c2767c438DfF36EAaFdaFc',
 	'0x1',
 	'0xcd',
+	'1',
+	0,
+	12,
+	'0',
+	'0x0',
+	'0x12',
 ];
 
 export const invalidBlockNumberData: any[] = [
-	...invalidHexStrictData,
+	'45a',
+	'',
+	BigInt(-255),
+	-42,
+	4.2,
 	'-0xcd',
 	'-0x0dec0518fa672a70027b04c286582e543ab17319fbdd384fa7bc8f3d5a542c0b',
 ];
@@ -317,7 +337,8 @@ export const invalidBlockNumberData: any[] = [
 export const validBlockTagData: string[] = ['latest', 'pending', 'earliest'];
 
 export const invalidBlockTagData: any[] = [
-	...invalidHexStrictData,
+	'User',
+	'0xal',
 	'EARLIEST',
 	'LATEST',
 	'PENDING',
@@ -348,7 +369,7 @@ export const invalidBooleanData = invalidHexStrictData.filter(
 	data => data !== 1 && data !== 0 && data !== '0' && data !== '1' && typeof data !== 'boolean',
 );
 
-export const validFilterObjectData: Record<string, unknown>[] = [
+export const validFilterObjectData: Filter[] = [
 	{
 		fromBlock: '0xc0ff3',
 	},
@@ -367,6 +388,8 @@ export const validFilterObjectData: Record<string, unknown>[] = [
 	{
 		topics: [
 			'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
+			// Using "null" value intentionally for validation
+			// eslint-disable-next-line no-null/no-null
 			null,
 			[
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -383,6 +406,8 @@ export const validFilterObjectData: Record<string, unknown>[] = [
 		],
 		topics: [
 			'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
+			// Using "null" value intentionally for validation
+			// eslint-disable-next-line no-null/no-null
 			null,
 			[
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -394,7 +419,7 @@ export const validFilterObjectData: Record<string, unknown>[] = [
 
 export const invalidFilterObjectData: any[] = [
 	{
-		fromBlock: 42,
+		fromBlock: '42a',
 	},
 	{
 		toBlock: -42,
@@ -406,12 +431,16 @@ export const invalidFilterObjectData: any[] = [
 		address: [
 			'0x98afe7a8d28bbc88dcf41f8e06d97c74958a47dc',
 			'0xdfd5293d8e347dfe59e90efd55b2956a1343963d',
+			// Using "null" value intentionally for validation
+			// eslint-disable-next-line no-null/no-null
 			null,
 		],
 	},
 	{
 		topics: [
 			'0x00000000000000000000000',
+			// Using "null" value intentionally for validation
+			// eslint-disable-next-line no-null/no-null
 			null,
 			[
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -429,6 +458,8 @@ export const invalidFilterObjectData: any[] = [
 		],
 		topics: [
 			'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',
+			// Using "null" value intentionally for validation
+			// eslint-disable-next-line no-null/no-null
 			null,
 			[
 				'0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b',

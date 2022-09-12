@@ -15,15 +15,14 @@ You should have received a copy of the GNU Lesser General Public License
 along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Address, HexString } from 'web3-utils';
-import { Transaction } from 'web3-eth';
+import { Address, HexString, Transaction } from 'web3-types';
 
 export type EthPersonalAPI = {
 	personal_listAccounts: () => Address[];
 	personal_newAccount: (password: string) => Address;
 	personal_unlockAccount: (address: Address, password: string, unlockDuration: number) => boolean;
 	personal_lockAccount: (address: Address) => boolean;
-	personal_importRawKey: (keyData: HexString, passphrase: string) => boolean;
+	personal_importRawKey: (keyData: HexString, passphrase: string) => HexString;
 	personal_sendTransaction: (tx: Transaction, passphrase: string) => HexString;
 	personal_signTransaction: (tx: Transaction, passphrase: string) => HexString;
 	personal_sign: (data: HexString, address: Address, passphrase: string) => HexString;
