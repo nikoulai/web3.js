@@ -546,13 +546,13 @@ describe('WebsocketProvider (ganache)', function () {
 
     //this fails, deferred promise is executed
     //todo investigate
-    it.skip('queues requests made while connection is lost / executes on reconnect', function () {
+    it('queues requests made while connection is lost / executes on reconnect', function () {
         this.timeout(10000);
         let stage = 0;
 
         return new Promise(async function (resolve) {
             server = ganache.server(ganacheOptions);
-            server.listen(port);
+            await server.listen(port);
 
             web3 = new Web3(
                 new Web3.providers.WebsocketProvider(
