@@ -573,6 +573,7 @@ describe('WebsocketProvider (ganache)', function () {
 
                 const deferred = web3.eth.getBlockNumber();
 
+                console.log('deferred',deferred);
                 server = ganache.server(ganacheOptions);
                 await server.listen(port);
 
